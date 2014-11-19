@@ -3,9 +3,6 @@ from PySpectrograph.Spectrograph import Spectrograph, Grating, Optics, CCD, Dete
 from PySpectrograph import SpectrographError
 
 
-class HRSError(Exception): 
-    pass
-
 class HRSModel (Spectrograph):
    """HRSModel is a class that describes the High Resolution Specotrgraph  on SALT
    """
@@ -15,7 +12,6 @@ class HRSModel (Spectrograph):
        
        #set up the parts of the grating
        self.grating_name=grating_name
-
 
        #set the telescope
        self.set_telescope('SALT')
