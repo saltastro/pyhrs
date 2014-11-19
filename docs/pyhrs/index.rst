@@ -1,10 +1,10 @@
 ****************
-Template package
+PyHRS
 ****************
 
-This is the documentation for the affiliated package.
+This is the documentation for the pyhrs package.
 
 Reference/API
 =============
 
-.. automodapi:: packagename
+.. automodapi:: pyhrs
