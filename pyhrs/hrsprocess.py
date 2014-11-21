@@ -11,7 +11,7 @@ from astropy import units as u
 
 import ccdproc
 
-__all__ = ['ccd_process', 'create_masterbias', 'create_masterflat', 
+__all__ = ['ccd_process', 'create_masterbias',  
            'hrs_process', 'blue_process', 'red_process']
 
 def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
@@ -115,16 +115,6 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
     elif error and (gain is None or rdnoise is None):
        raise ValueError('gain and rdnoise must be specified to create error frame')
  
-    #test subtracting the master bias
-    if isinstance(masterbias, ccdproc.CCDData):
-        nccd = nccd.subtract(masterbias)
-    elif isinstance(masterbias, np.ndarray):
-        nccd.data = nccd.data - masterbias
-    elif masterbias is None:
-        pass
-    else:
-        raise TypeError('masterbias is not None, numpy.ndarray,  or a CCDData object')
-      
     #apply the bad pixel mask
     if isinstance(bad_pixel_mask, np.ndarray):
        nccd.mask = bad_pixel_mask
@@ -140,6 +130,16 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
         pass
     else:
         raise TypeError('gain is not None or astropy.Quantity')
+
+    #test subtracting the master bias
+    if isinstance(masterbias, ccdproc.CCDData):
+        nccd = nccd.subtract(masterbias)
+    elif isinstance(masterbias, np.ndarray):
+        nccd.data = nccd.data - masterbias
+    elif masterbias is None:
+        pass
+    else:
+        raise TypeError('masterbias is not None, numpy.ndarray,  or a CCDData object')
 
 
 
@@ -243,22 +243,11 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[], masterbias=None,
         xsize = 0
         for i in range(namps):
             cc=ccdproc.trim_image(ccd, fits_section=ampsec[i])
-            if masterbias is not None:
-               if isinstance(masterbias, ccdproc.CCDData):
-                  mb=ccdproc.trim_image(masterbias, fits_section=ampsec[i])
-               else:
-                  raise NotImplementedError('Support for ndarray master bias not implimented yet') 
-            else:
-               mb = None
 
-            if bad_pixel_mask is not None:
-               raise NotImplementedError('Support for ndarray master bias not implimented yet')
-            else:
-               bpm = None
 
             gain = float(ccd.header['gain'].split()[i]) * u.electron/u.adu
             ncc = ccd_process(cc, oscan=oscansec[i], trim=trimsec[i], 
-                               error=error, masterbias=mb, bad_pixel_mask=bpm,
+                               error=False, masterbias=None, bad_pixel_mask=None,
                                gain=gain, rdnoise=rdnoise,
                                oscan_median=oscan_median, oscan_model=oscan_model)
             xsize = xsize + ncc.shape[1]
@@ -286,6 +275,8 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[], masterbias=None,
             x1 = x2  
 
         nccd = ccdproc.CCDData(data, unit=ncc.unit, mask=mask, uncertainty=uncertainty)
+        nccd = ccd_process(nccd, masterbias=masterbias, error=error, gain=None,
+                           rdnoise=rdnoise, bad_pixel_mask=bad_pixel_mask)
        
 
     if flip:
@@ -351,10 +342,9 @@ def create_masterbias(image_list):
         ccd_list.append(ccd)
 
     #combine the files
-    cb  = ccdproc.Combiner(ccd_list)
-    nccd = cb.median_combine()
+    cb = ccdproc.Combiner(ccd_list)
+    nccd = cb.median_combine(median_func=np.median)
+    print(nccd.shape)
     
     return nccd
 
-def create_masterflat():
-    return
