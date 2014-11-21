@@ -12,8 +12,7 @@ for more specialized code for the reduction of high stability observations.
 The package includes the following classes and functions:
 * HRSModel
 * hrsprocess
-* hrscalibrate
-* hrsextract
+* HRSOrder
 * hrstools
 
 
@@ -41,12 +40,12 @@ positioned such that the orders increase from the bottom to the top and the
 dispersion goes from the left to the right.  Flatfielding and calibration
 from a spectrophotometric standard will only be applied in later steps.
 
-hrscalibrate
+HRSOrder
 ------------
 
-`hrscalibrate` includes steps for creating calibration frames necessary 
-for HRS data.  This includes order maps, target/sky maps, and wavelength
-calibration maps.
+HRSOrder is a class descirbe a single order from an HRS image.  The order then
+has different tools for identifying regions, extracting orders, and defining 
+properties of different orders such as wavelengths and calibrations.
 
 hrsextract
 ----------
