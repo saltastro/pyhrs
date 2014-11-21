@@ -1,19 +1,58 @@
 HRSPROCESS
 ===========
 
-hrsprocess includes steps for the basic CCD processing necessary for HRS data. 
-The data can be reduced using the following syntax:
+`hrsprocess` includes steps for the basic CCD processing necessary for HRS data. 
+The code provides a wrapper for tasks from `ccdproc` to provide specific reductions
+for HRS data.   In addition, it provides several functions for creating calibration
+frames for the reduction of HRS data.
 
-  >> from ccdproc import CCDData
-  >> from pyhrs import hrs_process 
-  >> hdu = CCDData.read('H201411170015.fits', units=u.adu) 
-  >> hdu = hrs_process(hdu, overscan=[:,1:25], masterbias=masterbias, 
-  ...                  gain_correct=True, flip=True )
+.. note::
+    `hrsprcess` expects files to follow the SALT naming conventions
+
+
+Processing Data frames
+----------------------
+
+Data frames can be process using the tasks `blue_process` and `red_process`.   The user
+can select from several options included in these programs, but certain aspects are hard
+wired to provide convenient functions for data reductions.  For 
+
+  >>> from pyhrs.hrsprocess import blue_process 
+  >>> d('H201411170015.fits', units=u.adu) 
+  >>> ccd = blue_process(hdu, masterbias=masterbias)
   
-This will return an image that has had the overscan corrected, trimmed, and positioned 
+  
+This will return an `ccdproc.CCDData` object that has had the overscan corrected, 
+trimmed, gain corrected, had the master bias subtracted, and positioned 
 such that the orders increase from the bottom to the top and the dispersion goes from 
 the left to the right. Flatfielding and calibration from a spectrophotometric standard 
 will only be applied in later steps.
 
+Convenience functions for Processing Science Data:
+
+* `blue_process`: process data from the HRS blue camera
+* `red_process`: process data from the HRS red camera
+* `hrs_process`: convenience function for processing HRS data
+
+The functions all pass appropriate parameters to `~hrsprocess.ccd_process`.  This tasks
+wraps functions from `~ccdproc` for processing CCD images.   `~ccd_process` has a number 
+of steps, which are all optional, that include overscan subtraction, trimming, creating
+error frames, masking, gain correction, and subtracting a master bias.  
+
 Processing Calibration Frames
 -----------------------------
+
+Calibration frames can also be created using several convenience functions.  For example, 
+passing a list of filenames to `create_masterbias` will process the data and combine them
+to create the master bias frame.
+  
+  >>> from pyhrs.hrsprocess import create_masterbias
+  >>> masterbias = create_masterbias(['H201411170015.fits', 'H201411170016.fits']
+  
+This will process each frame and return a masterbias `ccdproc.CCDData` object.   In addition,
+there is a task for producing masterflats. 
+
+
+.. automodapi:: pyhrs
+
+.. _GitHub repo: https://github.com/saltastro/pyhrs
