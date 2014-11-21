@@ -21,11 +21,12 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
     """Perform basic processing on ccd data.
 
        The following steps can be included:
-       * overscan correction
-       * trimming of the image
-       * subtraction of master bias
-       * gain correction
-       * image alignment
+        * overscan correction
+        * trimming of the image
+        * create edeviation frame
+        * gain correction
+        * add a mask to the data
+        * subtraction of master bias
 
        The task returns a processed `ccdproc.CCDData` object.
 
