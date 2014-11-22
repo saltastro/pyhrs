@@ -43,11 +43,46 @@ def test_hrsorder_order_type_bad():
         h = HRSOrder(order=37, order_type='badtype')
 
 #test defining a region
+def test_hrsorder_region():
+    r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+    h = HRSOrder(order=37, region = r)
+    assert h.region == r
+
+def test_hrsorder_region_length_bad():
+    r = [(3,3,3,4,4,4,5,5,5)]
+    with pytest.raises(TypeError):
+        h = HRSOrder(order=37, region=r)
+
+def test_hrsorder_region_pixels_bad():
+    r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2)]
+    with pytest.raises(TypeError):
+        h = HRSOrder(order=37, region=r)
 
 #test setting the flux
- 
-#test setting the wavelength
+def test_hrsorder_flux():
+    r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+    f = np.arange(len(r[0]))
+    h = HRSOrder(order=37, region = r, flux = f)
+    assert_array_equal(h.flux, f)
+
+def test_hrsorder_flux_length():
+    with pytest.raises(TypeError):
+        r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+        f = np.arange(len(r[0]-1))
+        h = HRSOrder(order=37, region = r, flux = f)
 
 #test setting the wavelength
+def test_hrsorder_wavelength():
+    r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+    w = np.arange(len(r[0]))
+    h = HRSOrder(order=37, region = r, wavelength = w)
+    assert_array_equal(h.wavelength, w)
+
+def test_hrsorder_wavelength_length():
+    with pytest.raises(TypeError):
+        r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+        w = np.arange(len(r[0]-1))
+        h = HRSOrder(order=37, region = r, wavelength = w)
+
 
 
