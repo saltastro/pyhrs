@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from astropy import units as u
 
 class HRSOrder(object):
     
@@ -29,18 +30,18 @@ class HRSOrder(object):
     order_type: str
         Type of order for the Order of the HRS observations
 
+    flux_unit: `~astropy.units.UnitBase` instance or str, optional
+        The units of the flux.
+
+    wavelength_unit: `~astropy.units.UnitBase` instance or str, optional
+        The units of the wavelength
+
        
-    Raises
-    ------
-    TypeError
-        If the `order` is not an integer
-
-
     """
 
-    def __init__(self, order, region=None, flux=None, wavelength=None, order_type=None):
+    def __init__(self, order, region=None, flux=None, wavelength=None, 
+                 flux_unit=None, wavelength_unit=None, order_type=None):
         self.order = order
-        self.order_type = order_type
 
         if region is not None:
             self.region = region
@@ -52,6 +53,10 @@ class HRSOrder(object):
 
         if wavelength is not None:
             self.wavelength = wavelength
+
+        self.flux_unit = flux_unit
+        self.wavelength_unit = wavelength_unit
+        self.order_type = order_type
 
     @property
     def order(self):
@@ -97,6 +102,9 @@ class HRSOrder(object):
 
     @flux.setter
     def flux(self, value):
+        if value is None:
+            self._flux = None
+
         if self.region is None:
             raise ValueError('No region is set yet')
 
@@ -111,6 +119,9 @@ class HRSOrder(object):
 
     @wavelength.setter
     def wavelength(self, value):
+        if value is None:
+            self._wavelength = None
+
         if self.region is None:
             raise ValueError('No region is set yet')
 
@@ -118,6 +129,30 @@ class HRSOrder(object):
             raise TypeError("wavelength is not the same length as region")
 
         self._wavelength = value
+
+    @property
+    def flux_unit(self):
+        return self._flux_unit
+
+    @flux_unit.setter
+    def flux_unit(self, value):
+        if value is None:
+            self._flux_unit = None
+        else:
+            self._flux_unit = u.Unit(value)
+
+
+    @property
+    def wavelength_unit(self):
+        return self._wavelength_unit
+
+    @wavelength_unit.setter
+    def wavelength_unit(self, value):
+        if value is None:
+            self._wavelength_unit = None
+        else:
+            self._wavelength_unit = u.Unit(value)
+
 
              
     def set_order_from_array(self, data):
@@ -139,7 +174,7 @@ class HRSOrder(object):
 
         self.region = np.where(data == self.order)
 
-    def set_flux_from_array(self, data):
+    def set_flux_from_array(self, data, flux_unit=None):
         """Given an array of data of fluxes, set the fluxes for 
            the region at the given order for HRSOrder
 
@@ -147,6 +182,9 @@ class HRSOrder(object):
         ----------
         data: `~numpy.ndarray`
             data is an 2D array with a flux value specified at each pixel. 
+ 
+        flux_unit: `~astropy.units.UnitBase` instance or str, optional
+            The units of the flux.
 
         """
 
@@ -157,3 +195,76 @@ class HRSOrder(object):
             raise TypeError('data is not a 2D numpy.ndarray')
         
         self.flux = data[self.region]
+        self.flux_unit = flux_unit
+
+    def set_wavelength_from_array(self, data, wavelength_unit):
+        """Given an array of wavelengths, set the wavelength for 
+           each pixel coordinate in `~HRSOrder.region`.
+
+        Parameters
+        ----------
+        data: `~numpy.ndarray`
+            data is an 2D array with a wavelength value specified at each pixel
+
+        wavelength_unit: `~astropy.units.UnitBase` instance or str, optional
+            The units of the wavelength
+
+        """
+
+        if not isinstance(data, np.ndarray):
+            raise TypeError('data is not an numpy.ndarray')
+
+        if data.ndim !=2:
+            raise TypeError('data is not a 2D numpy.ndarray')
+
+        self.wavelength = data[self.region]
+        self.wavelength_unit = wavelength_unit
+
+    def set_wavelength_from_model(self, model, params, wavelength_unit, **kwargs):
+        """Given an array of wavelengths, set the wavelength for 
+           each pixel coordinate in `~HRSOrder.region`.
+
+        Parameters
+        ----------
+        model: function
+            model is a callable function that will create a corresponding 
+            wavelength for each pixel in `~HRSOrder.region`.  The function
+            can either be 1D or 2D.  If it is 2D, the x-coordinate should
+            be the first argument.
+
+        params: `~numpy.ndarray`
+            Either a 1D or 2D list of parameters with the number of elements
+            corresponding to the number of pixles. Typically, if model
+            is a 1D function, this would be the x-coordinated from 
+            `~HRSOrder.region`.  Otherwise, this would be expected to be
+            `~HRSOrder.region`.
+
+        wavelength_unit: `~astropy.units.UnitBase` instance or str, optional
+            The units of the wavelength
+
+        **kwargs: 
+            All additional keywords to be passed to model
+
+        """
+        if not hasattr(model, '__call__'):
+            raise TypeError('model is not a function')
+
+        self.wavelength_unit = wavelength_unit
+
+        if len(params) == self.npixels:
+            self.wavelength = model(params, **kwargs)          
+        elif len(params) == 2:
+            self.wavelength = model(params[1], params[0], **kwargs)          
+     
+        else:
+            raise TypeError('params is not the correct size or shape')
+
+    def extract_spectrum():
+        """Extract 1D spectrum from the information provided so far and 
+           createa  `~specutils.Spectrum1D` object
+
+        """
+        from specutils import Spectrum1D
+        return 
+
+
