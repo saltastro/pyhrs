@@ -42,17 +42,9 @@ class HRSOrder(object):
     def __init__(self, order, region=None, flux=None, wavelength=None, 
                  flux_unit=None, wavelength_unit=None, order_type=None):
         self.order = order
-
-        if region is not None:
-            self.region = region
-        else:
-            self.region = None
-
-        if flux is not None:
-            self.flux = flux
-
-        if wavelength is not None:
-            self.wavelength = wavelength
+        self.region = region
+        self.flux = flux
+        self.wavelength = wavelength
 
         self.flux_unit = flux_unit
         self.wavelength_unit = wavelength_unit
@@ -104,6 +96,7 @@ class HRSOrder(object):
     def flux(self, value):
         if value is None:
             self._flux = None
+            return 
 
         if self.region is None:
             raise ValueError('No region is set yet')
@@ -121,6 +114,7 @@ class HRSOrder(object):
     def wavelength(self, value):
         if value is None:
             self._wavelength = None
+            return 
 
         if self.region is None:
             raise ValueError('No region is set yet')
@@ -259,12 +253,23 @@ class HRSOrder(object):
         else:
             raise TypeError('params is not the correct size or shape')
 
-    def extract_spectrum():
+    def extract_spectrum(self):
         """Extract 1D spectrum from the information provided so far and 
            createa  `~specutils.Spectrum1D` object
 
         """
         from specutils import Spectrum1D
-        return 
+        if self.wavelength is None:
+            raise ValueError('wavelength is None')
+        if self.wavelength_unit is None:
+            raise ValueError('wavelength_unit is None')
+        if self.flux is None:
+            raise ValueError('flux is None')
+        if self.flux_unit is None:
+            raise ValueError('flux_unit is None')
+
+        wave = self.wavelength * self.wavelength_unit
+        flux = self.flux * self.flux_unit
+        return Spectrum1D.from_array(wave, flux)
 
 

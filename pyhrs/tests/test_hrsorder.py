@@ -11,6 +11,15 @@ from astropy import units as u
 
 from ..hrsorder import HRSOrder
 
+def create_hrsorder():
+    h = HRSOrder(order=16)
+    y = np.arange(25)
+    y = y.reshape(5,5)
+    h.set_order_from_array(y)
+    h.set_flux_from_array(y, flux_unit=u.electron)
+    def f(x,y): return 2*x+y
+    h.set_wavelength_from_model(f, h.region, wavelength_unit=u.nm)
+    return h
 
 
 def test_hrsorder_empty(): 
@@ -221,8 +230,34 @@ def test_hrsorder_set_wavelength_from_model_badmodel():
      with pytest.raises(TypeError):
           h.set_wavelength_from_model(5,h.region, wavelength_unit=u.nm)
 
+#add extract_spectrum tests
+def test_hrsorder_extract_spectrum_no_wavelength():
+    h = create_hrsorder()
+    h.wavelength = None
+    with pytest.raises(ValueError):
+         s = h.extract_spectrum()
 
+def test_hrsorder_extract_spectrum_no_wavelength_unit():
+    h = create_hrsorder()
+    h.wavelength_unit = None
+    with pytest.raises(ValueError):
+         s = h.extract_spectrum()
 
+def test_hrsorder_extract_spectrum_no_flux():
+    h = create_hrsorder()
+    h.flux = None
+    with pytest.raises(ValueError):
+         s = h.extract_spectrum()
 
+def test_hrsorder_extract_spectrum_no_flux_unit():
+    h = create_hrsorder()
+    h.flux_unit = None
+    with pytest.raises(ValueError):
+         s = h.extract_spectrum()
+
+def test_hrsorder_extract_spectrum():
+    h = create_hrsorder()
+    s = h.extract_spectrum()
+    assert len(s.flux) == len(h.flux)
 
 
