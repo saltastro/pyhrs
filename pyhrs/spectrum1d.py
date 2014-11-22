@@ -2,7 +2,6 @@
 # This module implements the Spectrum1D class.
 
 from __future__ import print_function, division
-from specutils.models.Indexer import Indexer
 
 __all__ = ['Spectrum1D']
 
