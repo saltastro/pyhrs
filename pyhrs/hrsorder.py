@@ -258,7 +258,11 @@ class HRSOrder(object):
            createa  `~specutils.Spectrum1D` object
 
         """
-        from specutils import Spectrum1D
+        try:
+            from specutils import Spectrum1D
+        except:
+            from .spectrum1d import Spectrum1D
+
         if self.wavelength is None:
             raise ValueError('wavelength is None')
         if self.wavelength_unit is None:

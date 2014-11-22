@@ -54,8 +54,8 @@ One the wavelength is set, a 1-D array can be extracted from the data using:
      
      >>> spectrum = h.extract_spectrum()
 
-This will return a `~specutils.Spectrum1D` object that will be a one-dimenionsal
-representation of the order. 
+This will return a `~Spectrum1D` object that will be a one-dimenionsal
+representation of the order with `wavelength` and `flux` propertiers.
 
 Setting the Wavelength
 ----------------------
