@@ -10,10 +10,10 @@ the low, medium, and high resolution modes for HRS and to prepare data
 for more specialized code for the reduction of high stability observations.
 
 The package includes the following classes and functions:
-* HRSModel
-* hrsprocess
-* HRSOrder
-* hrstools
+- HRSModel
+- hrsprocess
+- HRSOrder
+- hrstools
 
 
 HRSModel
@@ -28,17 +28,8 @@ hrs_process
 -----------
 
 `hrsprocess` includes steps for the basic CCD processing necessary for
-HRS data.   The data can be reduced using the following syntax:
-
-    >> from astropy.io import fits
-    >> from pyhrs import hrs_process
-    >> hdu = fits.open('H201411170015.fits')
-    >> hdu = hrs_process(hdu)
-
-This will return an image that has had the overscan corrected, trimmed, and
-positioned such that the orders increase from the bottom to the top and the
-dispersion goes from the left to the right.  Flatfielding and calibration
-from a spectrophotometric standard will only be applied in later steps.
+HRS data.   It also includes steps necessary for creating calibration
+frames.
 
 HRSOrder
 ------------
