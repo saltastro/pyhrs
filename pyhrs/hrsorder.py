@@ -44,6 +44,8 @@ class HRSOrder(object):
 
         if region is not None:
             self.region = region
+        else:
+            self.region = None
 
         if flux is not None:
             self.flux = flux
@@ -77,6 +79,10 @@ class HRSOrder(object):
 
     @region.setter
     def region(self, value):
+        if value is None: 
+           self._region = None
+           return 
+
         if len(value)!=2: 
             raise TypeError("region is not of length 2")
         if len(value[0])!=len(value[1]):
@@ -91,6 +97,9 @@ class HRSOrder(object):
 
     @flux.setter
     def flux(self, value):
+        if self.region is None:
+            raise ValueError('No region is set yet')
+
         if len(value)!=self.npixels: 
             raise TypeError("flux is not the same length as region")
             
@@ -102,10 +111,49 @@ class HRSOrder(object):
 
     @wavelength.setter
     def wavelength(self, value):
+        if self.region is None:
+            raise ValueError('No region is set yet')
+
         if len(value)!=self.npixels:
             raise TypeError("wavelength is not the same length as region")
 
         self._wavelength = value
 
-
              
+    def set_order_from_array(self, data):
+        """Given an array of data which has an order specified at each pixel, 
+           set the region at the given order for HRSOrder
+
+        Parameters
+        ----------
+        data: `~numpy.ndarray`
+            data is an 2D array with an order value specified at each pixel. If
+            no order is available for a given pixel, the pixel should have a 
+            value of zero. 
+
+        """
+        if not isinstance(data, np.ndarray):
+            raise TypeError('data is not an numpy.ndarray')
+        if data.ndim !=2:
+            raise TypeError('data is not a 2D numpy.ndarray')
+
+        self.region = np.where(data == self.order)
+
+    def set_flux_from_array(self, data):
+        """Given an array of data of fluxes, set the fluxes for 
+           the region at the given order for HRSOrder
+
+        Parameters
+        ----------
+        data: `~numpy.ndarray`
+            data is an 2D array with a flux value specified at each pixel. 
+
+        """
+
+        if not isinstance(data, np.ndarray):
+            raise TypeError('data is not an numpy.ndarray')
+
+        if data.ndim !=2:
+            raise TypeError('data is not a 2D numpy.ndarray')
+        
+        self.flux = data[self.region]

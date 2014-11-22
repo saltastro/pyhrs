@@ -71,6 +71,12 @@ def test_hrsorder_flux_length():
         f = np.arange(len(r[0]-1))
         h = HRSOrder(order=37, region = r, flux = f)
 
+def test_hrsorder_flux_noregion():
+    with pytest.raises(ValueError):
+        r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+        f = np.arange(len(r[0]))
+        h = HRSOrder(order=37, flux=f)
+
 #test setting the wavelength
 def test_hrsorder_wavelength():
     r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
@@ -84,5 +90,59 @@ def test_hrsorder_wavelength_length():
         w = np.arange(len(r[0]-1))
         h = HRSOrder(order=37, region = r, wavelength = w)
 
+def test_hrsorder_wavelength_noregion():
+    with pytest.raises(ValueError):
+        r = [(3,3,3,4,4,4,5,5,5), (1,2,3,1,2,3,1,2,3)]
+        w = np.arange(len(r[0]))
+        h = HRSOrder(order=37, wavelength = w)
+
+
+
+#test setting the array from the data
+def test_hrsorder_set_order_from_array():
+     h = HRSOrder(order=16) 
+     y = np.arange(25)
+     y = y.reshape(5,5)
+     h.set_order_from_array(y)
+     assert h.region == (np.array([3]), np.array([1]))
+     assert y[h.region] == [16]
+
+def test_hrsorder_set_order_from_array_baddata():
+     h = HRSOrder(order=16)
+     y = np.arange(25)
+     y = y.reshape(5,5)
+     with pytest.raises(TypeError):
+        h.set_order_from_array(5)
+
+def test_hrsorder_set_order_from_array_baddata_shape():
+     h = HRSOrder(order=16)
+     y = np.arange(25)
+     with pytest.raises(TypeError):
+        h.set_order_from_array(y)
+
+#test setting the flux from the data
+def test_hrsorder_set_flux_from_array():
+     h = HRSOrder(order=16)
+     y = np.arange(25)
+     y = y.reshape(5,5)
+     h.set_order_from_array(y)
+     h.set_flux_from_array(y)
+     assert h.flux == [16]
+
+def test_hrsorder_set_flux_from_array_baddata():
+     h = HRSOrder(order=16)
+     y = np.arange(25)
+     y = y.reshape(5,5)
+     h.set_order_from_array(y)
+     with pytest.raises(TypeError):
+        h.set_flux_from_array(5)
+     
+def test_hrsorder_set_flux_from_array_baddata_shape():
+     h = HRSOrder(order=16)
+     y = np.arange(25)
+     y = y.reshape(5,5)
+     h.set_order_from_array(y)
+     with pytest.raises(TypeError):
+        h.set_flux_from_array(np.ones(10))
 
 
