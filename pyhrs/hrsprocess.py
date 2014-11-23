@@ -323,7 +323,7 @@ def red_process(infile, masterbias=None, error=None, rdnoise=None):
     redtrim = ['[27:4122,1:4112]']
     ccd = hrs_process(infile, ampsec=redamp, oscansec=redscan,
                       trimsec=redtrim, masterbias=masterbias, error=error,
-                      rdnoise=None, flip=True)
+                      rdnoise=None, flip=False)
     return ccd
 
 
