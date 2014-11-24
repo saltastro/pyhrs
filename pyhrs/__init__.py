@@ -16,3 +16,5 @@ if not _ASTROPY_SETUP_:
     from hrsmodel import *
     from hrsprocess import *
     from hrsorder import *
+    from calibrationframes import *
+    from hrstools import *
