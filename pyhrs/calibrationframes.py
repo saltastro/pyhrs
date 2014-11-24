@@ -5,18 +5,21 @@
 import os
 import numpy as np
 from astropy.extern import six
+import warnings
 
 from astropy import units as u
 from astropy import modeling as mod
 
 from scipy import ndimage as nd
 
+
 import ccdproc
 
 from .hrsprocess import *
 from .hrstools import *
 
-__all__ = ['create_masterbias', 'create_masterflat', 'create_orderframe']
+__all__ = ['create_masterbias', 'create_masterflat', 'create_orderframe', 
+           'normalize_image']
 
 
 def create_masterbias(image_list):
@@ -91,9 +94,88 @@ def create_masterflat(image_list, masterbias=None):
 
     return nccd
 
+def normalize_image(data, func_init, mask, 
+                    fitter=mod.fitting.LinearLSQFitter,
+                    normalize=True):
+   """Normalize an HRS image.   
+
+   The tasks takes an image and will fit a function to the overall
+   shape to it.  The task will only fit to the illuminated orders
+   and if an order_frame is provided it will use that to identify the 
+   areas it should fit to.  Otherwise, it will filter the image such that
+   only the maximum areas are fit.  
+
+   This function will then be divided out of the image and return
+   a normalized image if requested.
+
+   Parameters
+   ----------
+   data: numpy.ndarray
+        Data to be normalized
+
+   mask: numpy.ndarray
+        If a numpy.ndarray, this will be used to determine areas
+        to be used for the fit.
+
+   func_init: ~astropy.modeling.models
+        Function to fit to the image
+
+   fitter: ~astropy.modeling.fitting
+        Fitter function
+
+   normalize: boolean
+        If normalize is True, it will return data normalized by the 
+        function fit to it.  If normalize is False, it will return
+        an array representing the function fit to data.
+
+   Returns
+   -------
+   ndata: numpy.ndarray
+        If normalize is True, it will return data normalized by the 
+        function fit to it.  If normalize is False, it will return
+        an array representing the function fit to data.
+   
+   """
+
+   if isinstance(mask, np.ndarray):
+        if mask.shape!=data.shape:
+            raise ValueError('mask is not the same shape as data')
+   else:
+        raise TypeError('mask is not None or an numpy.ndarray')
+
+   ys,xs = data.shape
+   if isinstance(fitter, mod.fitting._FitterMeta):
+        g_fit = fitter()
+   else:
+        raise TypeError('fitter is not a valid astropy.modeling.fitting')
+
+   if not hasattr(func_init,'n_inputs'):
+        raise TypeError('func_init is not a valid astropy.modeling.model')
+
+   if func_init.n_inputs==2:
+        y,x = np.indices((ys,xs))
+        f = g_fit(func_init, x[mask], y[mask], data[mask])
+        ndata = f(x,y)
+   elif func_init.n_inputs==1:
+        ndata = 0.0 * data
+        xarr = np.arange(xs)
+        yarr = np.arange(ys)
+        for i in range(xs):
+            f = g_fit(func_init, yarr[mask[:,i]], data[:,i][mask[:,i]])
+            ndata[:, i] = f(yarr)
+
+   if normalize:
+        return data/ndata * ndata.mean()
+   else:
+        return ndata
 
 
-def create_orderframe(data, first_order, xc, detect_kernal, fibers=2, func_order=3):
+
+
+
+
+def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
+                      y_start=0, y_limit=None):
     """Create an order frame from from an observation. 
 
        A two dimensional detect_kernal is correlated with the image.  The kernal
@@ -122,12 +204,14 @@ def create_orderframe(data, first_order, xc, detect_kernal, fibers=2, func_order
     detect_kern: ~numpy.ndarray
         The initial detection kernal which have the shape of a single order.
        
-    fibers: int
-        The number of fibers in the system.  The norder will only be incremented
-        after the number of fibers has been found.
+    smooth_length: int
+        The length to smooth the images by prior to processing them
 
-    func_order: int
-        The order for the polynomial to fit to the shape of the fibers
+    y_start: int
+        The initial value to start searching for the first maximum
+
+    y_limit: int
+        The limit in y-positions for automatically finding the orders. 
 
 
     Returns
@@ -137,10 +221,6 @@ def create_orderframe(data, first_order, xc, detect_kernal, fibers=2, func_order
         
 
     """
-    smooth_length=15
-    ystart = 30
-    y_limit = 3500
-
     #set up the arrays needed
     sdata = 1.0*data
     ndata = data[:,xc]
@@ -151,50 +231,36 @@ def create_orderframe(data, first_order, xc, detect_kernal, fibers=2, func_order
     xc = int(0.5*xs)
     norder = first_order
 
+    if y_limit is None: y_limit = ys
+
     #convolve with the default kernal
     cdata = np.convolve(ndata,detect_kernal, mode='same' )
     cdata *= (ndata>0)
     cdata = nd.filters.maximum_filter(cdata, smooth_length)
 
-    #import pylab as pl
-    #pl.plot(cdata[0:400])
-    #print np.where(cdata==0)
-    #pl.show()
-
-    i = ystart
+    i = y_start
     nlen = len(detect_kernal)
     max_value = sdata.max()
-    import pylab as pl
-    #pl.plot(cdata)
-    #pl.show()
-    print nlen
-    cdata[:ystart] = -1
+    cdata[:y_start] = -1
     while i < ys:
         #find the highest peak in the convolution area
         y1 = max(0, i)
         y2 = y1 + nlen
-        print 
-        print y1, y2
         try:
             y2 = np.where(cdata==0)[0][0]
-            #y2 = max(y2, c2)
-            print y2
         except Exception, e:
-            print(e)
-            pass
+            warnings.warn(e)
         y2 = min(ys-1, y2)
-        print y1, y2
         try:
             yc = cdata[y1:y2].argmax()+y1
         except: 
+            warning.warn('Breakying at %i' % i)
             break
-        print y1, y2, yc
         #this is to make sure the two fibers
         #are both contained in the same 
         #order       
         sy1 = max(0, yc - 0.5*smooth_length)
         sy2 = min(ys-1, yc + 2*smooth_length)
-        print 'smooth', yc, sy1, sy2
         sdata[sy1:sy2,xc] = max_value
 
         obj, nobj = nd.label(sdata>0.5*max_value)
@@ -217,15 +283,15 @@ def create_orderframe(data, first_order, xc, detect_kernal, fibers=2, func_order
 
         i = n2
         norder += 1
-        print i, norder, smooth_length
         if i > y_limit: 
             break
+            #TODO: Something needs to be figured out for when above the limit
+            #print i, norder, smooth_length
             sdata[order_frame > 0] = 0
             ndata = sdata[:,xc]
             detect_kernal = (order_frame==norder-1)[:,xc]
             detect_kernal = detect_kernal[detect_kernal>0]
             #smooth_length = smooth_length * len(detect_kernal)/nlen
-            print nlen, len(detect_kernal), smooth_length
             nlen = len(detect_kernal)
             
             if nlen > 0:
@@ -235,9 +301,6 @@ def create_orderframe(data, first_order, xc, detect_kernal, fibers=2, func_order
                 yn = np.where(cdata>0)[0][0]
                 cdata[:yn] = -1
             y_limit = ys
-
-            pl.plot(cdata)
-            pl.show()
 
     return order_frame
 
