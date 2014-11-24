@@ -12,5 +12,5 @@ Status reports for developers
     :target: https://travis-ci.org/saltastro/pyhrs
     :alt: Test Status
 
-.. image:: https://coveralls.io/repos/astropy/ccdproc/badge.png
-  :target: https://coveralls.io/r/astropy/ccdproc
+.. image:: https://coveralls.io/repos/saltastro/pyhrs/badge.png
+  :target: https://coveralls.io/r/saltastro/pyhrs
