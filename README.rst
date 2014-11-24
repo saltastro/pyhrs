@@ -11,6 +11,8 @@ Status reports for developers
 .. image:: https://travis-ci.org/saltastro/pyhrs.png?branch=master
     :target: https://travis-ci.org/saltastro/pyhrs
     :alt: Test Status
+    
+.. image:: https://coveralls.io/repos/saltastro/pyhrs/badge.png 
+    :target: https://coveralls.io/r/saltastro/pyhrs
 
-.. image:: https://coveralls.io/repos/saltastro/pyhrs/badge.png
-  :target: https://coveralls.io/r/saltastro/pyhrs
+
