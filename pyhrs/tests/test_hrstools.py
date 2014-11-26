@@ -9,5 +9,3 @@ from astropy.tests.helper import pytest
 
 from ..hrsmodel import HRSModel
 from PySpectrograph import SpectrographError
-
-
