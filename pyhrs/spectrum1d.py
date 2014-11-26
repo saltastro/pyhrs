@@ -14,11 +14,13 @@ from astropy import units as u
 
 import numpy as np
 
+
 class Spectrum1D(NDData):
+
     """A subclass of `NDData` for a one dimensional spectrum in Astropy.
-    
+
     This class inherits all the base class functionality from the NDData class
-    and is communicative with other Spectrum1D objects in ways which make sense.
+    and has similar properties with the specutils.Spectrum1D object.
 
     This is a placeholder until specutils is released
 
@@ -30,7 +32,7 @@ class Spectrum1D(NDData):
     data : `~numpy.ndarray`
         flux of the spectrum
 
-    wcs : `~astropy.wcs.WCS` 
+    wcs : `~astropy.wcs.WCS`
         transformation between pixel coordinates and "dispersion" coordinates
         this carries the unit of the dispersion
 
@@ -60,23 +62,25 @@ class Spectrum1D(NDData):
     """
 
     @classmethod
-    def from_array(cls, dispersion, flux, dispersion_unit=None, uncertainty=None, mask=None,
+    def from_array(cls, dispersion, flux, dispersion_unit=None,
+                   uncertainty=None, mask=None,
                    flags=None, meta=None, copy=True, unit=None):
-        return cls(wavelength=dispersion, flux=flux, wcs=None, unit=unit, uncertainty=uncertainty,
-                   mask=mask, flags=flags, meta=meta)
+        return cls(wavelength=dispersion, flux=flux, wcs=None, unit=unit,
+                   uncertainty=uncertainty, mask=mask, flags=flags, meta=meta)
 
-    def __init__(self, wavelength, flux, wcs=None, unit=None, uncertainty=None, mask=None,
-                 flags=None, meta=None, indexer=None):
+    def __init__(self, wavelength, flux, wcs=None, unit=None, uncertainty=None,
+                 mask=None, flags=None, meta=None, indexer=None):
 
-        super(Spectrum1D, self).__init__(data=flux, unit=unit, wcs=wcs, uncertainty=uncertainty,
-                   mask=mask, flags=flags, meta=meta)
+        super(Spectrum1D, self).__init__(data=flux, unit=unit, wcs=wcs,
+                                         uncertainty=uncertainty,
+                                         mask=mask, flags=flags, meta=meta)
 
         self.wavelength = wavelength
 
     @property
     def flux(self):
         return u.Quantity(self.data, self.unit, copy=False)
-   
+
     @flux.setter
     def flux_setter(self, flux):
         if hasattr(flux, 'unit'):
@@ -86,7 +90,6 @@ class Spectrum1D(NDData):
                 raise ValueError('Attempting to set a new unit for this object'
                                  'this is not allowed by Spectrum1D')
         self.data = flux
-
 
     @property
     def wavelength(self):
@@ -98,6 +101,3 @@ class Spectrum1D(NDData):
             self._wavelength = None
         else:
             self._wavelength = value
-
-
-
