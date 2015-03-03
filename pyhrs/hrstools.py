@@ -233,5 +233,72 @@ def fit_wavelength_solution(sol_dict):
     return sol_dict
 
 
+def iterfit1D(x, y, fitter, model, yerr=None, thresh=5, niter=5):
+    """Iteratively fit a function.  
+
+    Outlyiers will have a reduced weight in the fit, and then 
+    the fit will be repeated niter times to determine the
+    best fits
+
+    Parameters
+    ----------
+    x: numpy.ndarray
+        Arrray of x-values
+
+    y: numpy.ndarray
+        Arrray of y-values
+
+    fitter: ~astropy.modeling.fitting
+        Method to fit the model
+
+    model: ~astropy.modeling.model
+        A model to be fit
+
+    Returns
+    -------
+    m: ~astropy.modeling.model
+        Model fit after reducing the weight of outlyiers
+
+    """
+    if yerr is None: yerr = np.ones_like(y)
+    weights = np.ones_like(x)
+
+    for i in range(niter):
+        m = fitter(model, x, y, weights=weights)
+        weights = calc_weights(x, y, m, yerr)
+
+    return m
+
+
+def calc_weights(x, y, m, yerr=None):
+    """Calculate weights for each value based on deviation from best fit model
+
+    Parameters
+    ----------
+    x: numpy.ndarray
+        Arrray of x-values
+
+    y: numpy.ndarray
+        Arrray of y-values
+
+    model: ~astropy.modeling.model
+        A model to be fit
+ 
+    yerr: numpy.ndarray
+        [Optional] Array of uncertainties for the y-value
+
+    Returns
+    -------
+    weights: numpy.ndarray
+        Weights for each parameter
+
+    """
+    if yerr is None: yerr = np.ones_like(y)
+    r = (y - m(x))/yerr
+    s = np.median(abs(r - np.median(r))) / 0.6745
+    biweight = lambda x: ((1.0 - x ** 2) ** 2.0) ** 0.5
+    weights = 1.0/biweight(r / s)
+    return weights
+
 
 
