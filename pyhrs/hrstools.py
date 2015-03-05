@@ -8,7 +8,7 @@ from astropy import stats
 from astropy import modeling as mod
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
-           'iterfit1D', 'calc_weights', 'match_arc', 'fit_wavelength_solution']
+           'iterfit1D', 'calc_weights', 'match_lines', 'fit_wavelength_solution']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -210,13 +210,13 @@ def fit_wavelength_solution(sol_dict):
         for j, p  in enumerate(ws.parameters):
             coef_list[j][i] = p
 
-
+    
     #fit each coefficient with a value
     coef_sol = []
     for coef in coef_list:
         fit_c = mod.fitting.LinearLSQFitter()
         c_init = mod.models.Polynomial1D(1)
-        mask = (weights < 5*np.median(weights))
+        mask = (weights < 5 * np.median(weights))
         c = iterfit1D(yarr[mask], coef[mask], fit_c, c_init, niter=7)
         coef_sol.append(c)
 
@@ -365,7 +365,7 @@ def xcross_fit(warr, farr, sw_arr, sf_arr, dw = 1.0, nw=100):
     return warr+dw_arr[j]
 
 
-def match_arc(xarr, farr, sw, sf, ws, rw=10, dw=2.0, dres = 0.0001,
+def cross_match_arc(xarr, farr, sw, sf, ws, rw=10, dw=2.0, dres = 0.0001,
               npoints=20, xlimit=1.0, slimit=1.0):
     """Match lines in the spectra with specific wavleengths
 
@@ -431,27 +431,28 @@ def match_arc(xarr, farr, sw, sf, ws, rw=10, dw=2.0, dres = 0.0001,
     mx = []
     mw = []
 
+    sw_arr = np.arange(wp.min() - rw, wp.max() + rw, dres)
+    sf_arr = 0.0 * sw_arr
+    smask = (sw > wp.min() - rw) * (sw < wp.max() + rw)
+    for w in sw[smask]:
+        k = np.where(abs(sw_arr-w) < dres)
+        sf_arr[k] += 1.0
+    #smooth the artifical spectra
+    sf_arr = np.convolve(sf_arr, np.ones(3/0.001), mode='same')
+
     all_mask = 0.0 * warr
     # find the brightest npoint lines in the image and match the wavelengths
+    import datetime
     for i in fp.argsort()[::-1][:npoints]:
         mask = (warr > wp[i] - rw) * ( warr < wp[i]+rw)
-        smask = (sw > wp[i] - rw) * ( sw < wp[i]+rw)
-        pmask = (wp > wp[i] - rw) * ( wp < wp[i]+rw)
- 
-        #TODO: Can this be replaced with something simpler?
-        #create an artifical spectrum for cross matching
-        sw_arr = np.arange(wp[i] - rw, wp[i] + rw, dres)
-        sf_arr = 0.0 * sw_arr
-        for w in sw[smask]:
-            k = np.where(abs(sw_arr-w) < dres)
-            sf_arr[k] += 1.0
-        #smooth the artifical spectra
-        sf_arr = np.convolve(sf_arr, np.ones(3/0.001), mode='same')
+        smask = (sw_arr > wp[i] - rw) * ( sw_arr < wp[i]+rw)
 
-        warr[mask] = xcross_fit(warr[mask], farr[mask], sw_arr, sf_arr, dw=dw)
+        warr[mask] = xcross_fit(warr[mask], farr[mask], sw_arr[smask],
+                                sf_arr[smask], dw=dw, nw=10)
 
         #fit the best fitting line
-        g = mod.models.Gaussian1D(amplitude=farr[mask].max(), mean=xp[i], stddev=0.5)
+        g = mod.models.Gaussian1D(amplitude=farr[mask].max(), mean=xp[i],
+                                  stddev=0.5)
         g = fit_g(g, xarr[mask], farr[mask])
         x=g.mean.value
         w_x = np.interp(x, xarr[mask], warr[mask])
@@ -469,4 +470,86 @@ def match_arc(xarr, farr, sw, sf, ws, rw=10, dw=2.0, dres = 0.0001,
 
     return warr, (all_mask>0), mx, mw
 
+def match_lines(xarr, farr, sw, sf, ws, dw=5, npoints=20, xlimit=1.0, slimit=1.0,
+                wlimit=1.0):
+    """Match lines in the spectra with specific wavleengths
+
+    Match lines works by finding the closest peak based on the x-position
+    transformed by ws that is within wlimit of a known line.
+
+    Parameters
+    ----------
+    xarr: numpy.ndarray
+       pixel positions
+
+    farr: numpy.ndarray
+       flux values at xarr positions
+
+    sw: numpy.ndarray
+       wavelengths of known arc lines
+
+    sf: numpy.ndarray
+       relative fluxes at those wavelengths
+
+    ws: function 
+       Function converting xarr into wavelengths.  It should be  
+       defined such that wavelength = ws(xarr)
+
+    rw: float
+         Radius around peak to extract for fitting the center
+
+    npoints: int
+         The maximum number of points to bright points to fit.
+
+    xlimit: float
+         Maximum shift in line centroid when fitting
+
+    slimit: float
+         Minimum scale for line when fitting
+
+    wlimit: float
+         Minimum separation in wavelength between peak and line
+
+    Returns
+    -------
+    mx: numpy.ndarray
+        x-position for matched lines
+
+    mw: numpy.ndarray
+        Wavelength position for matched lines
+
+    """
+
+    fit_g = mod.fitting.LevMarLSQFitter()
+    #flattenthe fluxes
+    farr = farr - np.median(farr)
+
+    # detect the lines in the image
+    xp  = signal.find_peaks_cwt(farr, np.array([3]))
+    if xp==[]: return [], []
+
+    #set up the arrays
+    xp = np.array(xp)
+    fp = farr[xp]
+    wp = ws(xp)
+    warr = ws(xarr)
+    mx = []
+    mw = []
+
+    for i in fp.argsort()[::-1][0:npoints]:
+        gmask = abs(xarr-xp[i]) < 5
+        g = mod.models.Gaussian1D(amplitude=farr[gmask].max(), mean=xp[i],
+                                  stddev=0.5)
+        g = fit_g(g, xarr[gmask], farr[gmask])
+        x=g.mean.value
+        if abs(x-xp[i]) < xlimit and g.stddev.value > slimit:
+            w = ws(x) 
+            mask = abs(sw-w) < wlimit
+            l = sw[mask]
+            if len(l)==1:
+               mx.append(x)
+               mw.append(sw[mask][0])
+    return mx, mw
+
+        
 
