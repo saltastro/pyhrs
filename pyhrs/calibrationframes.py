@@ -1,6 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-# This module implements the base processing for HRS data
-from __future__ import (absolute_import, division, print_function,
+# This module implements the handling of different calibration files
+from __future__ import (absolute_import, division,# print_function,
                         unicode_literals)
 
 import os
@@ -18,9 +18,10 @@ import ccdproc
 
 from .hrsprocess import *
 from .hrstools import *
+from .hrsmodel import HRSModel
 
 __all__ = ['create_masterbias', 'create_masterflat', 'create_orderframe',
-           'normalize_image']
+           'wavelength_calibrate_arc', 'wavelength_calibrate_order']
 
 
 def create_masterbias(image_list):
@@ -94,82 +95,6 @@ def create_masterflat(image_list, masterbias=None):
     nccd = cb.median_combine(median_func=np.median)
 
     return nccd
-
-
-def normalize_image(data, func_init, mask,
-                    fitter=mod.fitting.LinearLSQFitter,
-                    normalize=True):
-    """Normalize an HRS image.
-
-    The tasks takes an image and will fit a function to the overall
-    shape to it.  The task will only fit to the illuminated orders
-    and if an order_frame is provided it will use that to identify the
-    areas it should fit to.  Otherwise, it will filter the image such that
-    only the maximum areas are fit.
-
-    This function will then be divided out of the image and return
-    a normalized image if requested.
-
-    Parameters
-    ----------
-    data: numpy.ndarray
-         Data to be normalized
-
-    mask: numpy.ndarray
-         If a numpy.ndarray, this will be used to determine areas
-         to be used for the fit.
-
-    func_init: ~astropy.modeling.models
-         Function to fit to the image
-
-    fitter: ~astropy.modeling.fitting
-         Fitter function
-
-    normalize: boolean
-         If normalize is True, it will return data normalized by the
-         function fit to it.  If normalize is False, it will return
-         an array representing the function fit to data.
-
-    Returns
-    -------
-    ndata: numpy.ndarray
-         If normalize is True, it will return data normalized by the
-         function fit to it.  If normalize is False, it will return
-         an array representing the function fit to data.
-
-    """
-
-    if isinstance(mask, np.ndarray):
-        if mask.shape != data.shape:
-            raise ValueError('mask is not the same shape as data')
-    else:
-        raise TypeError('mask is not None or an numpy.ndarray')
-
-    ys, xs = data.shape
-    if isinstance(fitter, mod.fitting._FitterMeta):
-        g_fit = fitter()
-    else:
-        raise TypeError('fitter is not a valid astropy.modeling.fitting')
-
-    if not hasattr(func_init, 'n_inputs'):
-        raise TypeError('func_init is not a valid astropy.modeling.model')
-
-    if func_init.n_inputs == 2:
-        y, x = np.indices((ys, xs))
-        f = g_fit(func_init, x[mask], y[mask], data[mask])
-        ndata = f(x, y)
-    elif func_init.n_inputs == 1:
-        ndata = 0.0 * data
-        xarr = np.arange(xs)
-        yarr = np.arange(ys)
-        for i in range(xs):
-            f = g_fit(func_init, yarr[mask[:, i]], data[:, i][mask[:, i]])
-            ndata[:, i] = f(yarr)
-
-    if normalize:
-        return data / ndata * ndata.mean()
-    else:
-        return ndata
 
 
 def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
@@ -301,3 +226,127 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
             y_limit = ys
 
     return order_frame
+
+def wavelength_calibrate_arc():
+    """Wavelength calibrate an arc spectrum from HRS
+ 
+    """
+    return
+
+
+def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws):
+    """Wavelength calibration of a  single order from the HRS arc spectra
+
+    The calibration proceeds through following steps:
+    1. Curvature due to the optical distortion is removed from the spectra and
+       a square representation of the 2D spectra is created.  Only integer 
+       shifts are applied to the data
+    2. A model of the spectrograph is created based on the order, camera, and
+       xpos offset that are supplied.
+    3. In each row of the data, peaks are extracted and matched with a
+       line in the atlas of wavelengths that is provided (slines, sflux).  For
+       the details of the matching process, see the match_arc function.
+    4. Once the first set of peaks and lines are matched up, a new solution
+       is calculated for the given row.   Then the processes of matching
+       lines and determining a wavelength solution is repeated.  The best
+       result from each line is saved.
+    5. Using all of the matched lines from all lines, a 'best' solution is 
+       determined.   Everything but the zeroth order parameter of the fit
+       is fixed to a slowly varying value based on the overall solution to all
+       lines.  See fit_solution for more details.
+    6. Based on the best solution to each line, the wavelength is determined in
+       each pixel of the data.   The wavelength property in the hrs object is 
+       opdated and the new hrs object is returned. 
+
+    Parameters
+    ----------
+    hrs: ~HRSOrder
+        Object describing a single HRS order.  It should already contain the
+        defined order and the flux from the arc for that order
+
+    sw: numpy.ndarray
+       wavelengths of known arc lines
+
+    sf: numpy.ndarray
+       relative fluxes at those wavelengths
+
+    ws_init: ~astropy.modeling.model
+        A initial model decribe the trasnformation from x-position to 
+        wavelength
+
+    fit_ws: ~astropy.modeling.fitting
+        Method to fit the model
+
+ 
+    Returns
+    -------
+    hrs: ~HRSOrder
+        An HRSOrder with a calibrated wavelength property
+
+    """
+    import datetime
+    import pickle
+
+    #create the box
+    xmax = hrs.region[1].max()
+    xmin = 0 
+    ymax = hrs.region[0].max()
+    ymin = hrs.region[0].min()
+    ys = ymax-ymin
+    xs = xmax-xmin
+    data = np.zeros((ys+1,xs+1))
+    ydata = np.zeros((ys+1,xs+1))
+    coef = np.polyfit(hrs.region[1], hrs.region[0], 3)
+    xarr = np.arange(xs+1)
+    yarr = np.polyval(coef, xarr)-ymin
+
+    for i in range(hrs.npixels):
+        y,x = hrs.region[0][i]-ymin, hrs.region[1][i]-xmin
+        y = y - int(np.polyval(coef, x) - ymin - yarr.min())
+        data[y,x] = hrs.flux[i]
+        ydata[y,x] = hrs.region[0][i]
+    pickle.dump(data, open('box_%i.pkl' % hrs.order, 'w'))
+
+    #set the wavelength
+    func_order = len(ws_init.parameters)
+    warr = ws_init(xarr)
+    
+    
+    #match the lines
+    y = data[:,int(0.5*len(xarr))]
+    y = np.where(y>0)[0]
+    nmax = y.max()
+    thresh=3
+
+    #find the best solution
+    y0 = 50
+    farr = 1.0*data[y0,:]
+    farr = farr[::-1]
+    mx, mw = match_lines(xarr, farr, slines, sfluxes, ws_init, wlimit=0.5)
+    ws = iterfit1D(mx, mw, fit_ws, ws_init)
+
+    sol_dict={}
+    for y in range(0, nmax, 1):
+        farr = 1.0*data[y,:]
+        farr = farr[::-1]
+        if farr.sum() > 0:
+            mx, mw = match_lines(xarr, farr, slines, sfluxes, ws, wlimit=0.5)
+            if len(mx) > func_order:
+                 nws = iterfit1D(mx, mw, fit_ws, ws_init, thresh=thresh)
+                 sol_dict[y] = [mx, mw, nws]
+    pickle.dump(sol_dict, open('sol_%i.pkl' % hrs.order, 'w'))
+    sol_dict = fit_wavelength_solution(sol_dict)
+
+    #update the wavelength values
+    wdata = 0.0*data
+    for y in sol_dict: 
+        mx, mw, nws = sol_dict[y]
+        wdata[y,:] = nws(xarr.max() - xarr)
+ 
+    x = hrs.region[1]
+    y = hrs.region[0] - ymin  - (np.polyval(coef, hrs.region[1]) - ymin - yarr.min()).astype(int)
+    hrs.wavelength = wdata[y,x]
+    
+
+   
+    return hrs
