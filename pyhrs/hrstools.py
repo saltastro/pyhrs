@@ -299,7 +299,10 @@ def calc_weights(x, y, m, yerr=None):
     r = (y - m(x))/yerr
     s = np.median(abs(r - np.median(r))) / 0.6745
     biweight = lambda x: ((1.0 - x ** 2) ** 2.0) ** 0.5
-    weights = 1.0/biweight(r / s)
+    if s!=0: 
+       weights = 1.0/biweight(r / s)
+    else:
+       weights = np.ones(len(x))
     return weights
 
 def ncor(x, y):
@@ -470,7 +473,7 @@ def cross_match_arc(xarr, farr, sw, sf, ws, rw=10, dw=2.0, dres = 0.0001,
 
     return warr, (all_mask>0), mx, mw
 
-def match_lines(xarr, farr, sw, sf, ws, dw=5, npoints=20, xlimit=1.0, slimit=1.0,
+def match_lines(xarr, farr, sw, sf, ws, rw=5, npoints=20, xlimit=1.0, slimit=1.0,
                 wlimit=1.0):
     """Match lines in the spectra with specific wavleengths
 
@@ -537,7 +540,7 @@ def match_lines(xarr, farr, sw, sf, ws, dw=5, npoints=20, xlimit=1.0, slimit=1.0
     mw = []
 
     for i in fp.argsort()[::-1][0:npoints]:
-        gmask = abs(xarr-xp[i]) < 5
+        gmask = abs(xarr-xp[i]) < rw
         g = mod.models.Gaussian1D(amplitude=farr[gmask].max(), mean=xp[i],
                                   stddev=0.5)
         g = fit_g(g, xarr[gmask], farr[gmask])
