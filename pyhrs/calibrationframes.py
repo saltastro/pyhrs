@@ -148,6 +148,7 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
 
     """
     # set up the arrays needed
+    data[data < 0.5 * data.max()] = 0
     sdata = 1.0 * data
     ndata = data[:, xc]
     order_frame = 0.0 * data
@@ -161,71 +162,56 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
         y_limit = ys
 
     # convolve with the default kernal
-    cdata = np.convolve(ndata, detect_kernal, mode='same')
-    cdata *= (ndata > 0)
-    cdata = nd.filters.maximum_filter(cdata, smooth_length)
+    #cdata = np.convolve(ndata, detect_kernal, mode='same')
+    #cdata *= (ndata > 0)
+    #cdata = nd.filters.maximum_filter(cdata, smooth_length)
+
+ 
+    import pylab as pl
 
     i = y_start
     nlen = len(detect_kernal)
     max_value = sdata.max()
-    cdata[:y_start] = -1
-    while i < ys:
+    ndata[:y_start] = -1
+    while i < y_limit:
+        cdata = np.convolve(ndata, detect_kernal, mode='same')
         # find the highest peak in the convolution area
         y1 = max(0, i)
         y2 = y1 + nlen
-        try:
-            y2 = np.where(cdata == 0)[0][0]
-        except Exception as e:
-            warnings.warn(str(e))
         y2 = min(ys - 1, y2)
-        try:
-            yc = cdata[y1:y2].argmax() + y1
-        except:
-            warning.warn('Breaking at (0)'.format(i))
-            break
+        yc = cdata[y1:y2].argmax() + y1
+
+        
+
         # this is to make sure the two fibers
         # are both contained in the same
         # order
-        sy1 = max(0, yc - 0.5 * smooth_length)
-        sy2 = min(ys - 1, yc + 2 * smooth_length)
+        sy1 = max(0, yc - smooth_length)
+        sy2 = min(ys - 1, yc + smooth_length)
         sdata[sy1:sy2, xc] = max_value
-
-        obj, nobj = nd.label(sdata > 0.5 * max_value)
+        obj, nobj = nd.label(sdata > 0.9 * max_value)
         nobj = obj[yc, xc]
         order_frame += norder * (obj == nobj)
 
-        # remove the data for this peak and
-        # all data it is now safe to ignore
-        cdata[0:y2] = -1
-        # now remove everything up until the next
-        # peak
-        try:
-            n2 = np.where(cdata > 0)[0][0]
-            cdata[0:n2] = -1
-        except:
-            n2 = y2
-        # change the smoothing length
-        z = (order_frame == norder)[:, xc]
-        smooth_length = 0.2 * z[z == 1].sum()
+        # first create the new detection kernal
+        yarr = np.arange(len(order_frame))
+        dy1 = yarr[(order_frame[:,xc]==norder)].min()
+        dy2 = yarr[(order_frame[:,xc]==norder)].max()
+        detect_kernal = 1.0 * ndata[dy1:dy2]
+        nlen = len(detect_kernal)
+        smooth_length = max(3, int(0.2*nlen))
 
+        # now remove the order from the data
+        data[order_frame==norder] = -1
+        print norder, y1, y2, yc, sy1, sy2, dy1, dy2, smooth_length, nlen
+
+        # set up the new frame and the place 
+        # to start measuring from
+        ndata = data[:,xc]
+        n2 = np.where(ndata > 0)[0][0]
+        ndata[0:n2] = -1
         i = n2
         norder += 1
-        if i > y_limit:
-            break
-            # TODO: Something needs to be figured out for when above the limit
-            sdata[order_frame > 0] = 0
-            ndata = sdata[:, xc]
-            detect_kernal = (order_frame == norder - 1)[:, xc]
-            detect_kernal = detect_kernal[detect_kernal > 0]
-            nlen = len(detect_kernal)
-
-            if nlen > 0:
-                cdata = np.convolve(ndata, detect_kernal, mode='same')
-                cdata *= (ndata > 0)
-                cdata = nd.filters.maximum_filter(cdata, smooth_length)
-                yn = np.where(cdata > 0)[0][0]
-                cdata[:yn] = -1
-            y_limit = ys
 
     return order_frame
 
