@@ -319,18 +319,26 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
         #set up the initial guess for the solution
         xarr  = np.arange(len(arc.data[0]))
         warr = 1e7*hrs_model.get_wavelength(xarr)
-
+        w1_limit = warr.min() - 5
+        w2_limit = warr.min() + 5
         j = abs(np.array(shift_dict.keys())-n_order).argmin()
-        warr += shift_dict[shift_dict.keys()[j]](xarr)
+        w_s = shift_dict[shift_dict.keys()[j]](xarr)
+        nwarr = warr + w_s
+        #check to see if the result is within the boundaries
+        #and if not use the first order
+        if nwarr.min() > w1_limit and nwarr.max() < w2_limit:
+           print 'Using first order', n_order, nwarr.min(), nwarr.max()
+           warr += shift_dict[first_order](xarr)
         ws = fit_ws(ws_init, xarr, warr)
-   
+        
         #limit line list to ones in the order
         print n_order, warr.min(), warr.max()
         smask = (slines > warr.min()-5) * (slines < warr.max() + 5)
 
         #find the calibrated wavelengths
-        hrs, nws = wavelength_calibrate_order(hrs, slines[smask], sfluxes[smask], ws, fit_ws, y0=y0, xlimit=xlimit, slimit=slimit, wlimit=wlimit)
+        hrs, nx, nw, nws = wavelength_calibrate_order(hrs, slines[smask], sfluxes[smask], ws, fit_ws, y0=y0, xlimit=xlimit, slimit=slimit, wlimit=wlimit)
             
+        if nx is None: continue
 
         #determine the wavelength shift
         s = fit_s(s_func, xarr, nws(xarr) - 1e7*hrs_model.get_wavelength(xarr))
@@ -456,6 +464,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
             if len(mx) > func_order:
                  nws = iterfit1D(mx, mw, fit_ws, ws_init, thresh=thresh)
                  sol_dict[y] = [mx, mw, nws]
+    if len(sol_dict)==0: return hrs, None, None, None
     pickle.dump(sol_dict, open('sol_%i.pkl' % hrs.order, 'w'))
     sol_dict = fit_wavelength_solution(sol_dict)
 
@@ -467,11 +476,17 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
         wdata[y,:] = nws(xarr.max() - xarr)
         rms = stats.median_absolute_deviation(mw-nws(mx)) / 0.6745
         edata[y,:] += rms
-          
  
     x = hrs.region[1]
     y = hrs.region[0] - ymin  - (np.polyval(coef, hrs.region[1]) - ymin - yarr.min()).astype(int)
     hrs.wavelength = wdata[y,x]
     hrs.wavelength_error = edata[y,x]
+
+    #in case no solution found for y0
+    try:
+       yt = sol_dict[y0][0]
+    except KeyError:    
+       y0 = sol_dict.keys()[0]
+    
    
-    return hrs, sol_dict[y0][2]
+    return hrs, sol_dict[y0][0], sol_dict[y0][1], sol_dict[y0][2]
