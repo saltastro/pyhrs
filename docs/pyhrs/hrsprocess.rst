@@ -1,7 +1,7 @@
-HRSPROCESS
-===========
+Processing HRS Data
+===================
 
-`hrsprocess` includes steps for the basic CCD processing necessary for HRS data. 
+`~pyhrs.hrsprocess` includes steps for the basic CCD processing necessary for HRS data. 
 The code provides a wrapper for tasks from `ccdproc` to provide specific reductions
 for HRS data.   In addition, it provides several functions for creating calibration
 frames for the reduction of HRS data.
@@ -13,9 +13,10 @@ frames for the reduction of HRS data.
 Processing Data frames
 ----------------------
 
-Data frames can be process using the tasks `blue_process` and `red_process`.   The user
+Data frames can be process using the tasks `~pyhrs.blue_process` and `~pyhrs.red_process`.   The user
 can select from several options included in these programs, but certain aspects are hard
-wired to provide convenient functions for data reductions.  For 
+wired to provide convenient functions for data reductions.  For example, to process blue
+data: 
 
   >>> from pyhrs.hrsprocess import blue_process 
   >>> d('H201411170015.fits', units=u.adu) 
@@ -30,12 +31,12 @@ will only be applied in later steps.
 
 Convenience functions for Processing Science Data:
 
-* `blue_process`: process data from the HRS blue camera
-* `red_process`: process data from the HRS red camera
-* `hrs_process`: convenience function for processing HRS data
+* `~pyhrs.blue_process`: process data from the HRS blue camera
+* `~pyhrs.red_process`: process data from the HRS red camera
+* `~pyhrs.hrs_process`: convenience function for processing HRS data
 
-The functions all pass appropriate parameters to `~hrsprocess.ccd_process`.  This tasks
-wraps functions from `~ccdproc` for processing CCD images.   `~ccd_process` has a number 
+The functions all pass appropriate parameters to `~~pyhrs.ccd_process`.  This tasks
+wraps functions from `~ccdproc` for processing CCD images.   `~~pyhrs.ccd_process` has a number 
 of steps, which are all optional, that include overscan subtraction, trimming, creating
 error frames, masking, gain correction, and subtracting a master bias.  
 
@@ -53,6 +54,5 @@ This will process each frame and return a masterbias `ccdproc.CCDData` object.  
 there is a task for producing masterflats. 
 
 
-.. automodapi:: pyhrs
 
 .. _GitHub repo: https://github.com/saltastro/pyhrs
