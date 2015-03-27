@@ -203,7 +203,6 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
 
         # now remove the order from the data
         data[order_frame==norder] = -1
-        print norder, y1, y2, yc, sy1, sy2, dy1, dy2, smooth_length, nlen
 
         # set up the new frame and the place 
         # to start measuring from
