@@ -49,5 +49,10 @@ HRStools
 
 HRStools includes generally utilies used across different functions and classes.
 
+Reference/API
+=============
+
+.. automodapi:: pyhrs
+
 
 

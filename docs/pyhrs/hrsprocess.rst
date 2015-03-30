@@ -19,8 +19,7 @@ wired to provide convenient functions for data reductions.  For example, to proc
 data: 
 
   >>> from pyhrs.hrsprocess import blue_process 
-  >>> d('H201411170015.fits', units=u.adu) 
-  >>> ccd = blue_process(hdu, masterbias=masterbias)
+  >>> ccd = blue_process('H201411170015.fits', masterbias=masterbias)
   
   
 This will return an `ccdproc.CCDData` object that has had the overscan corrected, 
@@ -50,8 +49,12 @@ to create the master bias frame.
   >>> from pyhrs.hrsprocess import create_masterbias
   >>> masterbias = create_masterbias(['H201411170015.fits', 'H201411170016.fits']
   
-This will process each frame and return a masterbias `ccdproc.CCDData` object.   In addition,
-there is a task for producing masterflats. 
+This will process each frame and return a masterbias `ccdproc.CCDData` object.  
+
+ In addition, masterflats can be produced using:
+
+  >>> from pyhrs.hrsprocess import create_masterflat
+  >>> masterflat = create_masterflat(['H201411170020.fits', 'H201411170021.fits', 'H201411100022.fits']
 
 
 
