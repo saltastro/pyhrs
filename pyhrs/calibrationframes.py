@@ -103,10 +103,10 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
                       y_start=0, y_limit=None):
     """Create an order frame from from an observation.
 
-    A two dimensional detect_kernal is correlated with the image.  The
+    A one dimensional detect_kernal is correlated with a column in the image.  The
     kernal steps through y-space until a match is made.  Once a best fit is
-    found, the order is extracted to include pixels that may not be part of
-    the initial detection kernal.  Once all pixels have been extracted, they
+    found, the order is extracted to include all pixels that are detected to 
+    be part of that order.  Once all pixels have been extracted, they
     are set to zero in the original frame.  The detection kernal is updated
     by the new order detected
 
@@ -357,9 +357,10 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
        determined.   Everything but the zeroth order parameter of the fit
        is fixed to a slowly varying value based on the overall solution to all
        lines.  See fit_solution for more details.
-    6. Based on the best solution to each line, the wavelength is determined in
-       each pixel of the data.   The wavelength property in the hrs object is 
-       opdated and the new hrs object is returned. 
+    6. Based on the best solution found, the process is repeated for each
+       row but only determing the zeropoint.
+    7. Based on the solution found, a wavelength is assigned to each pixel
+
 
     Parameters
     ----------
