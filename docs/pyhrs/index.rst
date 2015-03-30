@@ -29,6 +29,7 @@ For more information about how to process your data, please check out
     
     hrsprocess
     findingorders
+    wavelengthcalibration
 
 .. _GitHub repo: https://github.com/saltastro/pyhrs
     
