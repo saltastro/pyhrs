@@ -1,5 +1,5 @@
-numpy
-matplotlib
-Cython
-astropy-helpers
-astropy
+numpy>=1.9
+scipy
+numpydoc
+astropy>=1.0
+ccdproc>=0.3
