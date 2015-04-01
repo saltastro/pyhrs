@@ -302,22 +302,22 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
         hrs_model.set_order(n_order)
   
         #set up the initial guess for the solution
-        xarr  = np.arange(len(arc.data[0]))
+        xarr  = np.arange(hrs.region[1].max())
         warr = 1e7*hrs_model.get_wavelength(xarr)
         w1_limit = warr.min() - 5
         w2_limit = warr.min() + 5
         j = abs(np.array(shift_dict.keys())-n_order).argmin()
         w_s = shift_dict[shift_dict.keys()[j]](xarr)
         nwarr = warr + w_s
+        print n_order, nwarr.min(), nwarr.max()
         #check to see if the result is within the boundaries
         #and if not use the first order
         if nwarr.min() > w1_limit and nwarr.max() < w2_limit:
            print 'Using first order', n_order, nwarr.min(), nwarr.max()
-           warr += shift_dict[first_order](xarr)
-        ws = fit_ws(ws_init, xarr, warr)
+           nwarr = warr +  shift_dict[first_order](xarr)
+        ws = fit_ws(ws_init, xarr, nwarr)
         
         #limit line list to ones in the order
-        print n_order, warr.min(), warr.max()
         smask = (slines > warr.min()-5) * (slines < warr.max() + 5)
 
         #find the calibrated wavelengths
@@ -332,7 +332,6 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
         wdata[hrs.region] = hrs.wavelength
         edata[hrs.region] = hrs.wavelength_error
         print '  ', now()
-
 
     return wdata, edata
 
