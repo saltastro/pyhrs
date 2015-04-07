@@ -12,8 +12,11 @@ import scipy.ndimage as nd
 
 import ccdproc
 
+from .hrsorder import HRSOrder
+
+
 __all__ = ['ccd_process', 'create_masterbias', 'hrs_process', 'blue_process',
-           'red_process', 'flatfield_science_order']
+           'red_process', 'flatfield_science_order', 'flatfield_science']
 
 
 def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
@@ -419,3 +422,46 @@ def flatfield_science_order(hrs, flat_hrs, median_filter_size=None):
 
     return hrs
 
+def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None):
+    """Flatfield all of the orders in a science frame
+
+    ccd: ~ccdproc.CCDData
+        Science frame to be flatfielded
+
+    flar_frame: ~ccdproc.CCDData
+        Frame containting the flat field for each of the orders
+
+    order_frame: ~ccdproc.CCDData
+        Frame containting the positions of each of the orders
+
+     median_filter_size: None or int
+        Size for median filter to be run on the data and remove the general
+        flat field shape
+
+    Returns
+    -------
+    ccd: ~ccdproc.CCDData
+        Flatfielded science frame
+       
+    """
+    #get a list of orders
+    o1 = order_frame.data[order_frame.data>0].min()
+    o2 = order_frame.data.max()
+    order_arr = np.arange(o1, o2, dtype=int)
+
+    ndata = 0.0 * ccd.data
+    for n_order in order_arr:
+        hrs = HRSOrder(n_order)
+        hrs.set_order_from_array(order_frame.data)
+        hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit)
+
+        flat_hrs = HRSOrder(n_order)
+        flat_hrs.set_order_from_array(order_frame.data)
+        flat_hrs.set_flux_from_array(flat_frame.data, flux_unit=flat_frame.unit)
+
+        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=51)
+
+        ndata[hrs.region[0], hrs.region[1]] = hrs.flux
+
+    ccd.data = ndata
+    return ccd
