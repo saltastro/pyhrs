@@ -17,7 +17,7 @@ from scipy import ndimage as nd
 from .hrstools import *
 from .hrsorder import HRSOrder
 
-__all__=['simple_extract_order']
+__all__=['simple_extract_order', 'extract_science']
 
 def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None):
     """Simple_extract_order transforms the observed spectra into a square form, 
@@ -78,4 +78,49 @@ def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None):
     mask = (warr > 0) * (farr > 0) 
     return warr[mask], farr[mask]
 
+
+def extract_science(ccd, wave_frame, order_frame, extract_func=None, **kwargs):
+    """Extract the spectra for each order in the order frame.  It will use the 
+    extraction function specified by extract_func which will expect an 
+    `~pyhrs.HRSObject` to be passed to it along with any arguments. 
+
+    Parameters
+    ----------
+    ccd: ~ccdproc.CCDData
+        Science frame to be flatfielded
+
+    wave_frame: ~ccdproc.CCDData
+        Frame containting the wavelength for each pixel
+
+    order_frame: ~ccdproc.CCDData
+        Frame containting the positions of each of the orders
+
+    extract_fuc: function
+        Fucntion to use for extracting the spectra
+ 
+
+    Returns
+    -------
+    spectra_dict: list
+        Dictionary of spectra for each order
+       
+    """
+    spectra_dict={}
+
+    #get a list of orders
+    o1 = order_frame.data[order_frame.data>0].min()
+    o2 = order_frame.data.max()
+    order_arr = np.arange(o1, o2, dtype=int)
+
+    for n_order in order_arr:
+        hrs = HRSOrder(n_order)
+        hrs.set_order_from_array(order_frame.data)
+        hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit)
+        hrs.set_wavelength_from_array(wave_frame.data, wavelength_unit=wave_frame.unit)
+  
+        if np.any(hrs.wavelength>0):
+            w,f = extract_func(hrs, **kwargs)
+            spectra_dict[n_order] = [w,f]
+       
+    return spectra_dict
 
