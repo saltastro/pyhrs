@@ -305,16 +305,16 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
         xarr  = np.arange(hrs.region[1].max())
         warr = 1e7*hrs_model.get_wavelength(xarr)
         w1_limit = warr.min() - 5
-        w2_limit = warr.min() + 5
+        w2_limit = warr.max() + 5
         j = abs(np.array(shift_dict.keys())-n_order).argmin()
         w_s = shift_dict[shift_dict.keys()[j]](xarr)
         nwarr = warr + w_s
-        print n_order, nwarr.min(), nwarr.max()
+        print n_order, nwarr.min(), nwarr.max(), w1_limit, w2_limit
         #check to see if the result is within the boundaries
         #and if not use the first order
-        if nwarr.min() > w1_limit and nwarr.max() < w2_limit:
+        if nwarr.min() < w1_limit and nwarr.max() > w2_limit:
            print 'Using first order', n_order, nwarr.min(), nwarr.max()
-           nwarr = warr +  shift_dict[first_order](xarr)
+           nwarr = warr +  shift_dict[first_order](xarr) 
         ws = fit_ws(ws_init, xarr, nwarr)
         
         #limit line list to ones in the order
@@ -435,7 +435,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     farr = 1.0*data[y0,:]
     farr = farr[::-1]
     mx, mw = match_lines(xarr, farr, slines, sfluxes, ws_init, npoints=npoints,
-                         xlimit=xlimit, slimit=slimit, wlimit=wlimit)
+                         xlimit=xlimit, slimit=slimit, wlimit=1.0)
     ws = iterfit1D(mx, mw, fit_ws, ws_init)
 
     sol_dict={}
@@ -446,7 +446,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
             mx, mw = match_lines(xarr, farr, slines, sfluxes, ws, 
                                  npoints=npoints, xlimit=xlimit, slimit=slimit,
                                  wlimit=wlimit)
-            if len(mx) > func_order:
+            if len(mx) > func_order+1:
                  nws = iterfit1D(mx, mw, fit_ws, ws_init, thresh=thresh)
                  sol_dict[y] = [mx, mw, nws]
     if len(sol_dict)==0: return hrs, None, None, None

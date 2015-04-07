@@ -298,8 +298,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
         if (nccd.mask is not None):
             nccd.mask = nccd.mask[::-1, ::-1]
         if (nccd.uncertainty is not None):
-            raise NotImplementedError(
-                'Flipping is not implimented yet for uncertainty')
+            nccd.uncertainty = nccd.uncertainty[::-1, ::-1]
 
     return nccd
 
