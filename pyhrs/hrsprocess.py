@@ -8,11 +8,12 @@ import numpy as np
 from astropy.extern import six
 
 from astropy import units as u
+import scipy.ndimage as nd
 
 import ccdproc
 
 __all__ = ['ccd_process', 'create_masterbias', 'hrs_process', 'blue_process',
-           'red_process']
+           'red_process', 'flatfield_science_order']
 
 
 def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
@@ -363,3 +364,58 @@ def create_masterbias(image_list):
     nccd = cb.median_combine(median_func=np.median)
 
     return nccd
+
+def flatfield_science_order(hrs, flat_hrs, median_filter_size=None):
+    """Apply a flat field to an hrs order.  If median_filter_size is set, 
+       the process first removes the overall flat shape by dividing out
+       a median filter of the data.   Then it is divided through the
+       science data.  This is done on a row by row basis after removing
+       the shape of the science data.
+
+    Parameters
+    ----------
+
+    hrs: `~pyhrs.HRSOrder`
+        Object describing a single HRS order
+
+    flat_hrs: `~pyhrs.HRSOrder`
+        Object describing the flatfield for a single HRS order
+
+    median_filter_size: None or int
+        Size for median filter to be run on the data and remove the general
+        flat field shape
+
+    Returns
+    -------
+    hrs: `~pyhrs.HRSOrder`
+        An hrs object with the flatfield applied to the flux property.
+    
+    """
+
+    # set through each line and correct for the shape of the flux 
+    # if needed
+    if median_filter_size is not None:
+        # set up the box for the flat hrs
+        fbox, coef = flat_hrs.create_box(flat_hrs.flux)
+        #for each line, correct for the shape of the flux
+        y1 = 0
+        y2 = len(fbox)
+        for i in range(y1,y2):
+            if np.any(fbox[i]>0): 
+                 fbox[i][fbox[i]==np.inf] = 0
+                 sf = nd.filters.median_filter(fbox[i], size=median_filter_size)
+                 sf[sf<=0] = max(sf.mean(),1)
+                 fbox[i] = fbox[i]/sf
+
+        #return to the original shape
+        flat_hrs.flux = flat_hrs.unravel_box(fbox)
+ 
+        
+    #step to prevent divide by zero
+    flat_hrs.flux[flat_hrs.flux==0] = 1
+
+    #divide and normalize by the flux
+    hrs.flux = hrs.flux * np.median(flat_hrs.flux) / flat_hrs.flux
+
+    return hrs
+
