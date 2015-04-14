@@ -4,6 +4,8 @@ PyHRS
 Package for reducing data from the High Resolution Spectrograph on the
 Southern African Large Telescope. 
 
+Documentation is at `pyhrs.readthedocs.org
+<http://pyhrs.readthedocs.org/en/latest/>`_
 
 Status reports for developers
 -----------------------------
