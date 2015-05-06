@@ -18,3 +18,4 @@ if not _ASTROPY_SETUP_:
     from hrsorder import *
     from calibrationframes import *
     from hrstools import *
+    from extraction import *

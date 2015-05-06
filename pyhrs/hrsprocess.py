@@ -425,11 +425,13 @@ def flatfield_science_order(hrs, flat_hrs, median_filter_size=None):
 def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None):
     """Flatfield all of the orders in a science frame
 
+    Parameters
+    ----------
     ccd: ~ccdproc.CCDData
         Science frame to be flatfielded
 
     flar_frame: ~ccdproc.CCDData
-        Frame containting the flat field for each of the orders
+        Frame containing the flat field for each of the orders
 
     order_frame: ~ccdproc.CCDData
         Frame containting the positions of each of the orders

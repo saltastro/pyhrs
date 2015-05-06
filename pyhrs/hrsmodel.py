@@ -64,7 +64,7 @@ class HRSModel (Spectrograph):
         """
         d = self.detector.xbin * self.detector.pix_size * \
             (xarr - self.detector.get_xpixcenter())
-        dbeta = np.degrees(np.arctan(d / self.camera.focallength))
+        dbeta = -np.degrees(np.arctan(d / self.camera.focallength))
         return self.calc_wavelength(
             self.alpha(), -self.beta() + dbeta, gamma=gamma)
 

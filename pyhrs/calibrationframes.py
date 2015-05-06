@@ -155,7 +155,7 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
 
     # set up additiona information that we need
     ys, xs = data.shape
-    xc = int(0.5 * xs)
+    #xc = int(0.5 * xs)
     norder = first_order
 
     if y_limit is None:
@@ -167,7 +167,6 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
     #cdata = nd.filters.maximum_filter(cdata, smooth_length)
 
  
-    import pylab as pl
 
     i = y_start
     nlen = len(detect_kernal)
@@ -200,6 +199,7 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
         detect_kernal = 1.0 * ndata[dy1:dy2]
         nlen = len(detect_kernal)
         smooth_length = max(3, int(0.2*nlen))
+        if nlen < 3: return order_frame
 
         # now remove the order from the data
         data[order_frame==norder] = -1
@@ -207,14 +207,21 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
         # set up the new frame and the place 
         # to start measuring from
         ndata = data[:,xc]
-        n2 = np.where(ndata > 0)[0][0]
+        try:
+            n2 = np.where(ndata > 0)[0][0]
+        except:
+            break
         ndata[0:n2] = -1
         i = n2
         norder += 1
+        
 
     return order_frame
 
-def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs_model, ws_init, fit_ws, y0=50, wavelength_shift=None, xlimit=1.0, slimit=1.0, wlimit=0.5,  min_order=54):
+def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, 
+                             hrs_model, ws_init, fit_ws, y0=20, shift_dict=None,
+                             wavelength_shift=None, xlimit=1.0, slimit=1.0, 
+                             wlimit=0.5,  min_order=54, fiber=None):
     """Wavelength calibrate an arc spectrum from HRS
 
     'wavelength_calibrate_order' will be applied to each order in 'order_frame'a
@@ -251,6 +258,11 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
     y0: int
         First row in which to determine the solution
 
+    shift_dict: dict, optional
+        If specified, this should be a dictionary of wavelength solutions for
+        each order at y0.  It will be used in place of the model and 
+        wavelength shift.
+
     wavelength_shift: ~astropy.modeling.model or None
         For the row given by y0, this is the correction needed to be applied
         to the model wavelengths to provide a closer match to the observed
@@ -268,6 +280,10 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
     wlimit: float
          Minimum separation in wavelength between peak and line
 
+    fiber: None, 'upper', or 'lower'
+         If None, extracts all the pixels in the order.  If upper, it only
+         extracts the pixels associated with the fiber on top.  If 'lower',
+         it only extracts the pixels of the fiber on bottom.
  
     """
 
@@ -275,11 +291,17 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
     o1 = max(order_frame.data[order_frame.data>0].min(),min_order)
     o2 = order_frame.data.max()
     order_arr = np.arange(o1, o2, dtype=int)
-    shift_dict={}
-    if wavelength_shift is not None:
-        shift_dict[first_order] = wavelength_shift
+
+    if shift_dict is not None:
+        use_shift=False
     else:
-        shift_dict[first_order] = lambda x: x
+        use_shift=True
+        shift_dict={}
+        if wavelength_shift is not None:
+            shift_dict[first_order] = wavelength_shift
+        else:
+            shift_dict[first_order] = lambda x: x
+
     s_func = mod.models.Polynomial1D(2)
     fit_s = mod.fitting.LinearLSQFitter()
     import pylab as pl
@@ -288,14 +310,20 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
 
     wdata = 0.0 * arc.data
     edata = 0.0 * arc.data
+
+    top_fiber=False
+    if fiber=='upper': top_fiber=True
     print now()
+    order_dict = {}
     for i in abs(order_arr-first_order).argsort():
 
         n_order = order_arr[i]
-
+ 
         #set up the hrs order object
         hrs = HRSOrder(n_order)
         hrs.set_order_from_array(order_frame.data)
+        if fiber:
+            hrs.set_target(top_fiber=top_fiber)
         hrs.set_flux_from_array(arc.data, flux_unit=arc.unit)
 
         #set up the model
@@ -303,40 +331,52 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order, hrs
   
         #set up the initial guess for the solution
         xarr  = np.arange(hrs.region[1].max())
-        warr = 1e7*hrs_model.get_wavelength(xarr)
-        w1_limit = warr.min() - 5
-        w2_limit = warr.max() + 5
-        j = abs(np.array(shift_dict.keys())-n_order).argmin()
-        w_s = shift_dict[shift_dict.keys()[j]](xarr)
-        nwarr = warr + w_s
-        print n_order, nwarr.min(), nwarr.max(), w1_limit, w2_limit
-        #check to see if the result is within the boundaries
-        #and if not use the first order
-        if nwarr.min() < w1_limit and nwarr.max() > w2_limit:
-           print 'Using first order', n_order, nwarr.min(), nwarr.max()
-           nwarr = warr +  shift_dict[first_order](xarr) 
-        ws = fit_ws(ws_init, xarr, nwarr)
-        
+        if use_shift:
+            warr = 1e7*hrs_model.get_wavelength(xarr)
+            w1_limit = warr.min() - 5
+            w2_limit = warr.max() + 5
+            j = abs(np.array(shift_dict.keys())-n_order).argmin()
+            w_s = shift_dict[shift_dict.keys()[j]](xarr)
+            nwarr = warr + w_s
+            ws = fit_ws(ws_init, xarr, nwarr)
+            print n_order, nwarr.min(), nwarr.max(), w1_limit, w2_limit
+            #check to see if the result is within the boundaries
+            #and if not use the first order
+            if nwarr.min() < w1_limit and nwarr.max() > w2_limit:
+                print 'Using first order', n_order, nwarr.min(), nwarr.max()
+                nwarr = warr +  shift_dict[first_order](xarr)
+                ws = fit_ws(ws_init, xarr, nwarr)
+        else: 
+            warr = shift_dict[n_order](xarr)
+            ws = fit_ws(ws_init, xarr, warr)
+
         #limit line list to ones in the order
         smask = (slines > warr.min()-5) * (slines < warr.max() + 5)
 
         #find the calibrated wavelengths
-        hrs, nx, nw, nws = wavelength_calibrate_order(hrs, slines[smask], sfluxes[smask], ws, fit_ws, y0=y0, xlimit=xlimit, slimit=slimit, wlimit=wlimit)
-            
+        hrs, sol_dict = wavelength_calibrate_order(hrs, slines[smask], sfluxes[smask], ws, fit_ws, y0=y0, xlimit=xlimit, slimit=slimit, wlimit=wlimit)
+
+        if sol_dict is None: continue
+        order_dict[n_order] = sol_dict
+        try:
+            nx, nw, nws = sol_dict[y0]           
+        except KeyError:
+            continue
         if nx is None: continue
 
         #determine the wavelength shift
-        s = fit_s(s_func, xarr, nws(xarr) - 1e7*hrs_model.get_wavelength(xarr))
-        shift_dict[n_order] = s
+        if use_shift:
+            s = fit_s(s_func, xarr, nws(xarr) - 1e7*hrs_model.get_wavelength(xarr))
+            shift_dict[n_order] = s
         
         wdata[hrs.region] = hrs.wavelength
         edata[hrs.region] = hrs.wavelength_error
         print '  ', now()
 
-    return wdata, edata
+    return wdata, edata, order_dict
 
 
-def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npoints=30, xlimit=1.0, slimit=1.0, wlimit=0.5):
+def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npoints=30, xlimit=1.0, slimit=1.0, wlimit=0.5, fixed=False):
     """Wavelength calibration of a  single order from the HRS arc spectra
 
     The calibration proceeds through following steps:
@@ -430,26 +470,31 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     y = np.where(y>0)[0]
     nmax = y.max()
     thresh=3
+    print nmax
 
     #find the best solution
     farr = 1.0*data[y0,:]
-    farr = farr[::-1]
     mx, mw = match_lines(xarr, farr, slines, sfluxes, ws_init, npoints=npoints,
                          xlimit=xlimit, slimit=slimit, wlimit=1.0)
+    if len(mx)==0: return hrs, None
     ws = iterfit1D(mx, mw, fit_ws, ws_init)
 
     sol_dict={}
     for y in range(0, nmax, 1):
-        farr = 1.0*data[y,:]
-        farr = farr[::-1]
         if farr.sum() > 0:
             mx, mw = match_lines(xarr, farr, slines, sfluxes, ws, 
                                  npoints=npoints, xlimit=xlimit, slimit=slimit,
                                  wlimit=wlimit)
             if len(mx) > func_order+1:
-                 nws = iterfit1D(mx, mw, fit_ws, ws_init, thresh=thresh)
-                 sol_dict[y] = [mx, mw, nws]
-    if len(sol_dict)==0: return hrs, None, None, None
+                if fixed:
+                    nws=ws_init.copy()
+                    dw = np.median(mw - nws(mx))
+                    nws.c0 -= dw
+                    sol_dict[y] = [mx, mw, nws]
+                else:
+                    nws = iterfit1D(mx, mw, fit_ws, ws_init, thresh=thresh)
+                    sol_dict[y] = [mx, mw, nws]
+    if len(sol_dict)==0: return hrs, None
     pickle.dump(sol_dict, open('sol_%i.pkl' % hrs.order, 'w'))
     sol_dict = fit_wavelength_solution(sol_dict)
 
@@ -458,7 +503,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     edata = 0.0*data
     for y in sol_dict: 
         mx, mw, nws = sol_dict[y]
-        wdata[y,:] = nws(xarr.max() - xarr)
+        wdata[y,:] = nws(xarr)
         rms = stats.median_absolute_deviation(mw-nws(mx)) / 0.6745
         edata[y,:] += rms
  
@@ -474,4 +519,4 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
        y0 = sol_dict.keys()[0]
     
    
-    return hrs, sol_dict[y0][0], sol_dict[y0][1], sol_dict[y0][2]
+    return hrs, sol_dict
