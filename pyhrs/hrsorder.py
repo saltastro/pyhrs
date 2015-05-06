@@ -253,6 +253,7 @@ class HRSOrder(object):
         else:
             raise TypeError('params is not the correct size or shape')
 
+
     def create_box(self, flux):
         """Convert order into a square representation with integer shifts
            beteween each pixel
@@ -271,18 +272,72 @@ class HRSOrder(object):
         xmin = 0
         ymax = self.region[0].max()
         ymin = self.region[0].min()
-        ys = ymax-ymin
         xs = xmax-xmin
-        data = np.zeros((ys+1,xs+1))
-        ydata = np.zeros((ys+1,xs+1))
         coef = np.polyfit(self.region[1], self.region[0], 3)
         xarr = np.arange(xs+1)
         yarr = np.polyval(coef, xarr)-ymin
         x = self.region[1]-xmin
         y = self.region[0]-ymin - (np.polyval(coef, x) - ymin - yarr.min()).astype(int)
+        ys = y.max()
+        data = np.zeros((ys+1,xs+1))
         data[y,x] = flux
         return data, coef
         
+
+    def unravel_box(self, box):
+        """Convert a rectangular represenation of the spectra back to a single
+           array
+
+        Parameters
+        ----------
+        box: ~numpy.ndarray
+            Rectangular represnation of flux
+
+        Returns
+        -------
+        data: ~numpy.ndarray
+            Array of values to convert into a rectangular representation
+        """
+        xmax = self.region[1].max()
+        xmin = 0
+        ymax = self.region[0].max()
+        ymin = self.region[0].min()
+        ys = ymax-ymin
+        xs = xmax-xmin
+        data = np.zeros((ys+1,xs+1))
+        coef = np.polyfit(self.region[1], self.region[0], 3)
+        xarr = np.arange(xs+1)
+        yarr = np.polyval(coef, xarr)-ymin
+        x = self.region[1]-xmin
+        y = self.region[0]-ymin - (np.polyval(coef, x) - ymin - yarr.min()).astype(int)
+        data = np.zeros(self.npixels)
+        data = box[y,x]
+        return data
+        
+
+    def set_target(self, top_fiber=True):
+        """Remove any pixels not associated with the target fiber. 
+
+        Parameters
+        ----------
+        top_fiber: boolean
+           If True, then the top fiber is the target fiber.  Otherwise,
+           the target fiber is the one on bottom.
+        """
+        coef = np.polyfit(self.region[1], self.region[0], 3)
+        if top_fiber:
+           mask = (self.region[0] > np.polyval(coef, self.region[1]))  
+        else:
+           mask = (self.region[0] < np.polyval(coef, self.region[1]))  
+       
+        self.region = (self.region[0][mask], self.region[1][mask])
+
+        if self.wavelength is not None:
+            self.wavelength = self.wavelength[mask]
+        if self.flux is not None:
+            self.flux = self.flux[mask]
+
+        return
 
 
     def extract_spectrum(self):
