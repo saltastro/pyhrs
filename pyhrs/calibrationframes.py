@@ -470,14 +470,18 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     y = np.where(y>0)[0]
     nmax = y.max()
     thresh=3
-    print nmax
 
     #find the best solution
     farr = 1.0*data[y0,:]
     mx, mw = match_lines(xarr, farr, slines, sfluxes, ws_init, npoints=npoints,
                          xlimit=xlimit, slimit=slimit, wlimit=1.0)
-    if len(mx)==0: return hrs, None
-    ws = iterfit1D(mx, mw, fit_ws, ws_init)
+    if fixed:
+        ws=ws_init.copy()
+        dw = np.median(mw - nws(mx))
+        ws.c0 -= dw
+    else:
+        if len(mx)==0: return hrs, None
+        ws = iterfit1D(mx, mw, fit_ws, ws_init)
 
     sol_dict={}
     for y in range(0, nmax, 1):

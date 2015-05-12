@@ -547,11 +547,16 @@ def match_lines(xarr, farr, sw, sf, ws, rw=5, npoints=20, xlimit=1.0, slimit=1.0
         x=g.mean.value
         if abs(x-xp[i]) < xlimit and g.stddev.value > slimit:
             w = ws(x) 
-            mask = abs(sw-w) < wlimit
-            l = sw[mask]
-            if len(l)==1:
-               mx.append(x)
-               mw.append(sw[mask][0])
+            if wlimit is None:
+                j = abs(sw-w).argmin()
+                mx.append(x)
+                mw.append(sw[j])
+            else:
+                mask = abs(sw-w) < wlimit
+                l = sw[mask]
+                if len(l)==1:
+                   mx.append(x)
+                   mw.append(sw[mask][0])
     return mx, mw
 
         
