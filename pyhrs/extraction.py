@@ -19,7 +19,7 @@ from .hrsorder import HRSOrder
 
 __all__=['simple_extract_order', 'extract_science']
 
-def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None):
+def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None, interp=False):
     """Simple_extract_order transforms the observed spectra into a square form, 
        extracts all of the pixels between y1 and y2, and then sums the results.
 
@@ -54,7 +54,7 @@ def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None):
     """
     
     #set up the initial wavelength and flux 
-    data, coef = hrs.create_box(hrs.flux)
+    data, coef = hrs.create_box(hrs.flux, interp=interp)
     wdata, coef = hrs.create_box(hrs.wavelength)
 
     w1 = hrs.wavelength[hrs.wavelength>0].min()
@@ -79,7 +79,7 @@ def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None):
     return warr[mask], farr[mask]
 
 
-def extract_science(ccd, wave_frame, order_frame, extract_func=None, **kwargs):
+def extract_science(ccd, wave_frame, order_frame, target_fiber=None,  extract_func=None, **kwargs):
     """Extract the spectra for each order in the order frame.  It will use the 
     extraction function specified by extract_func which will expect an 
     `~pyhrs.HRSObject` to be passed to it along with any arguments. 
@@ -94,6 +94,9 @@ def extract_science(ccd, wave_frame, order_frame, extract_func=None, **kwargs):
 
     order_frame: ~ccdproc.CCDData
         Frame containting the positions of each of the orders
+ 
+    target_fiber: 'upper', 'lower', or None
+        Specify the fiber to be extracted
 
     extract_fuc: function
         Fucntion to use for extracting the spectra
@@ -115,12 +118,15 @@ def extract_science(ccd, wave_frame, order_frame, extract_func=None, **kwargs):
     for n_order in order_arr:
         hrs = HRSOrder(n_order)
         hrs.set_order_from_array(order_frame.data)
+        if target_fiber=='upper': hrs.set_target(True)
+        if target_fiber=='lower': hrs.set_target(False)
         hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit)
         hrs.set_wavelength_from_array(wave_frame.data, wavelength_unit=wave_frame.unit)
   
         if np.any(hrs.wavelength>0):
             w,f = extract_func(hrs, **kwargs)
             spectra_dict[n_order] = [w,f]
+        print(n_order)
        
     return spectra_dict
 

@@ -450,13 +450,14 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     ymin = hrs.region[0].min()
     ys = ymax-ymin
     xs = xmax-xmin
-    data = np.zeros((ys+1,xs+1))
     ydata = np.zeros((ys+1,xs+1))
     coef = np.polyfit(hrs.region[1], hrs.region[0], 3)
     xarr = np.arange(xs+1)
     yarr = np.polyval(coef, xarr)-ymin
     x = hrs.region[1]-xmin
     y = hrs.region[0]-ymin - (np.polyval(coef, x) - ymin - yarr.min()).astype(int)
+    ys = y.max()
+    data = np.zeros((ys+1,xs+1))
     data[y,x] = hrs.flux
     pickle.dump(data, open('box_%i.pkl' % hrs.order, 'w'))
 
@@ -477,7 +478,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
                          xlimit=xlimit, slimit=slimit, wlimit=1.0)
     if fixed:
         ws=ws_init.copy()
-        dw = np.median(mw - nws(mx))
+        dw = np.median(mw - ws(mx))
         ws.c0 -= dw
     else:
         if len(mx)==0: return hrs, None

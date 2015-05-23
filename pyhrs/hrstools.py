@@ -8,7 +8,8 @@ from astropy import stats
 from astropy import modeling as mod
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
-           'iterfit1D', 'calc_weights', 'match_lines', 'fit_wavelength_solution']
+           'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift',
+           'fit_wavelength_solution']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -560,4 +561,60 @@ def match_lines(xarr, farr, sw, sf, ws, rw=5, npoints=20, xlimit=1.0, slimit=1.0
     return mx, mw
 
         
+def zeropoint_shift(xarr, flux, reference_xarr, reference_flux, dx=5.0, nx=100, center=None):
+    """Determine the shift between two spectra and return the re-interpolated
+       spectra
+
+    Parameters
+    ----------
+    xarr: numpy.ndarray
+        x-positions for spectra
+
+    flux: numpy.ndarray
+        Flux values for spectra
+
+    reference_xarr: numpy.ndarray
+        x-positions for reference spectra
+
+    reference_flux: numpy.ndarray
+        Flux values for reference spectra
+
+    dx: float
+        range of x-values to search over
+ 
+    nx: int
+        number of steps for dx
+
+    center: None or int
+        If specified, it will interpolate over the dx values to calculate the
+        best shift.  Otherwise, it will just use the dx value with the largest
+        cross correlation value.
+
+    Returns
+    -------
+    dc: float
+        shift in x-position for the spectra
+
+    shift_flux: numpy.ndarray
+        Shifted spectra to frame of reference spectra
+
+    """
+    dc_arr = np.arange(-dx, dx, 1.0*dx/nx)
+    nc_arr = np.zeros_like(dc_arr)
+    for i, dc in enumerate(dc_arr):
+        shift_flux = np.interp(reference_xarr+dc, xarr, flux)
+        nc_arr[i] = ncor(reference_flux, shift_flux)
+        
+    if center:
+        dc = dc_arr[nc_arr.argmax()]
+        mask = abs(dc_arr-dc) < 1.0*center*dx/nx
+        m_init = mod.models.Polynomial1D(2)
+        m_fit = mod.fitting.LinearLSQFitter()
+        m = m_fit(m_init, dc_arr[mask], nc_arr[mask])
+        dc = m.parameters[1]/2/-m.parameters[2]
+    else:
+        dc = dc_arr[nc_arr.argmax()]
+    shift_flux = np.interp(reference_xarr+dc, xarr, flux)
+    return dc, shift_flux
+
 

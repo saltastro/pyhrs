@@ -144,7 +144,7 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
 
     # test subtracting the master bias
     if isinstance(masterbias, ccdproc.CCDData):
-        nccd = nccd.subtract(masterbias)
+        nccd = ccdproc.subtract_bias(nccd, masterbias)
     elif isinstance(masterbias, np.ndarray):
         nccd.data = nccd.data - masterbias
     elif masterbias is None:
@@ -294,6 +294,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
 
         nccd = ccdproc.CCDData(data, unit=ncc.unit, mask=mask,
                                uncertainty=uncertainty)
+        nccd.header = ccd.header
         nccd = ccd_process(nccd, masterbias=masterbias, error=error, gain=None,
                            rdnoise=rdnoise, bad_pixel_mask=bad_pixel_mask)
 
@@ -368,7 +369,7 @@ def create_masterbias(image_list):
 
     return nccd
 
-def flatfield_science_order(hrs, flat_hrs, median_filter_size=None):
+def flatfield_science_order(hrs, flat_hrs, median_filter_size=None, interp=False):
     """Apply a flat field to an hrs order.  If median_filter_size is set, 
        the process first removes the overall flat shape by dividing out
        a median filter of the data.   Then it is divided through the
@@ -399,7 +400,7 @@ def flatfield_science_order(hrs, flat_hrs, median_filter_size=None):
     # if needed
     if median_filter_size is not None:
         # set up the box for the flat hrs
-        fbox, coef = flat_hrs.create_box(flat_hrs.flux)
+        fbox, coef = flat_hrs.create_box(flat_hrs.flux, interp=interp)
         #for each line, correct for the shape of the flux
         y1 = 0
         y2 = len(fbox)
@@ -422,7 +423,7 @@ def flatfield_science_order(hrs, flat_hrs, median_filter_size=None):
 
     return hrs
 
-def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None):
+def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, interp=False):
     """Flatfield all of the orders in a science frame
 
     Parameters
@@ -461,7 +462,7 @@ def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None):
         flat_hrs.set_order_from_array(order_frame.data)
         flat_hrs.set_flux_from_array(flat_frame.data, flux_unit=flat_frame.unit)
 
-        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=51)
+        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=median_filter_size)
 
         ndata[hrs.region[0], hrs.region[1]] = hrs.flux
 
