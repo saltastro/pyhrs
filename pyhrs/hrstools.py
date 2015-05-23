@@ -3,13 +3,18 @@
 #from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
+
 from scipy import signal
+
 from astropy import stats
 from astropy import modeling as mod
+from astropy import units as u
+
+import specutils
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
            'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift',
-           'fit_wavelength_solution']
+           'fit_wavelength_solution', 'create_linelists']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -617,4 +622,44 @@ def zeropoint_shift(xarr, flux, reference_xarr, reference_flux, dx=5.0, nx=100, 
     shift_flux = np.interp(reference_xarr+dc, xarr, flux)
     return dc, shift_flux
 
+def create_linelists(linefile, spectrafile):
+    """Create line lists reads in the line list file in two different formats
+
+    Parameters
+    ----------
+    linefile: str
+        Name of file with wavelengths of arc lines
+
+    spectrafile: str
+        FITS file of a spectra of an arc lamp
+
+    Returns
+    -------
+    slines: ~numpy.ndarray
+        Arrary of wavelengths of arc lines
+
+    sfluxes: ~numpy.ndarray
+        Array of fluxes at each wavelength
+
+    sw: ~numpy.ndarray
+        array of wavelengths for arc spectra
+
+    sf: ~numpy.ndarray
+        array of fluxes for arc spectra
+
+    """
+    thar_spec = specutils.io.read_fits.read_fits_spectrum1d(spectrafile, dispersion_unit=u.angstrom)
+    sw = thar_spec.wavelength.value
+    sf = thar_spec.flux.value
+
+
+    #read in arc lines
+    slines = np.loadtxt(linefile, usecols=(0,), unpack=True)
+    sfluxes = 0.0*slines
+
+    for i in range(len(slines)):
+        j = abs(thar_spec.wavelength-slines[i]*u.angstrom).argmin()
+        sfluxes[i] = thar_spec.flux[j]
+
+    return sw, sf, slines, sfluxes
 
