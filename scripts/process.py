@@ -11,7 +11,7 @@ if __name__=='__main__':
    infile = sys.argv[1]
 
    if os.path.basename(infile).startswith('H'):
-        mccd = None #CCDData.read('HBIAS.fits')
+        mccd = CCDData.read('HBIAS.fits')
         ccd = blue_process(infile, masterbias=mccd)
    elif os.path.basename(infile).startswith('R'):
         ccd = red_process(infile)
@@ -24,7 +24,7 @@ if __name__=='__main__':
       ccd=flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, interp=True)
       
 
-   outfile = 'f'+infile
+   outfile = 'p'+infile
    ccd.write(outfile, clobber=True)
 
      

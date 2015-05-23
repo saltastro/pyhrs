@@ -169,6 +169,7 @@ if __name__=='__main__':
             xpos = -0.025
             target = True
             res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
         elif arc.header['OBSMODE']=='MEDIUM RESOLUTION':
             xpos = 0.00
             target = True
