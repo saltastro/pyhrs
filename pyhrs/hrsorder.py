@@ -254,7 +254,7 @@ class HRSOrder(object):
             raise TypeError('params is not the correct size or shape')
 
 
-    def create_box(self, flux):
+    def create_box(self, flux, interp=False):
         """Convert order into a square representation with integer shifts
            beteween each pixel
 
@@ -280,7 +280,16 @@ class HRSOrder(object):
         y = self.region[0]-ymin - (np.polyval(coef, x) - ymin - yarr.min()).astype(int)
         ys = y.max()
         data = np.zeros((ys+1,xs+1))
-        data[y,x] = flux
+        if interp:
+           yarr = np.arange(ys+1)
+           for i in range(xs):
+               mask = (self.region[1]==i)
+               ym = ymin-np.polyval(coef, xarr).min()
+               if mask.sum() > 0:
+                   y = self.region[0][mask]- np.polyval(coef, i) -  ym
+                   data[:,i] = np.interp(yarr, y, flux[mask])
+        else:
+           data[y,x] = flux
         return data, coef
         
 
