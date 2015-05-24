@@ -14,7 +14,7 @@ import specutils
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
            'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift',
-           'fit_wavelength_solution', 'create_linelists']
+           'fit_wavelength_solution', 'create_linelists', 'collapse_array']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -505,7 +505,7 @@ def match_lines(xarr, farr, sw, sf, ws, rw=5, npoints=20, xlimit=1.0, slimit=1.0
        defined such that wavelength = ws(xarr)
 
     rw: float
-         Radius around peak to extract for fitting the center
+         Radius in pixels around peak to extract for fitting the center
 
     npoints: int
          The maximum number of points to bright points to fit.
@@ -663,3 +663,48 @@ def create_linelists(linefile, spectrafile):
 
     return sw, sf, slines, sfluxes
 
+
+def collapse_array(data, i_reference):
+    """Given an array, determine the best shift between each row and then co-add
+
+    Parameters
+    ----------
+    data: ~numpy.ndarray
+        A 2D array for an image of a single fiber
+
+    i_reference: int
+        Row to which match the other rows
+
+
+    Returns 
+    -------
+    flux: ~numpy.ndarray
+        Co-addition of all rows  in data after finding the appropriate
+        shift for each row.
+
+    """
+    xarr = np.arange(len(data[0]))
+    flux = np.zeros_like(xarr)
+
+    #set up the reference positions
+    y0 = data[i_reference,:]
+    xp = np.array(signal.find_peaks_cwt(y0, np.array([3])))
+    fp = y0[xp]
+    m_init = mod.models.Polynomial1D(2)
+    fit_m = mod.fitting.LinearLSQFitter()
+    m = fit_m(m_init, xp, xp)
+    #this step is just run to really get the centroid positions
+    xp, wp = match_lines(xarr, y0, xp, fp, m, npoints = 50, xlimit=5, slimit=0.1, wlimit=5)
+    x0 = np.array(xp)
+
+    #now find the match for each row 
+    shift_dict={}
+    for i in np.arange(len(data)):
+        y =  data[i,:]
+        xp, m0 = match_lines(xarr, y, x0, fp, m, npoints = 50, xlimit=5, slimit=0.1, wlimit=5)
+        m = iterfit1D(xp, m0, fit_m, m_init)
+        shift_dict[i] = m
+        shift_flux = np.interp(xarr, m(xarr), y)
+        flux += shift_flux
+
+    return flux, shift_dict
