@@ -21,50 +21,8 @@ from specreduce import WavelengthSolution
 
 
 from pyhrs import red_process
-from pyhrs import zeropoint_shift
+from pyhrs import zeropoint_shift, create_linelists, collapse_array
 from pyhrs import HRSOrder, HRSModel
-
-
-def create_linelists(linefile, spectrafile):
-    """Create line lists reads in the line list file in two different formats
-
-    Parameters
-    ----------
-    linefile: str
-        Name of file with wavelengths of arc lines
-
-    spectrafile: str
-        FITS file of a spectra of an arc lamp
-
-    Returns
-    -------
-    slines: ~numpy.ndarray
-        Arrary of wavelengths of arc lines
-
-    sfluxes: ~numpy.ndarray
-        Array of fluxes at each wavelength
-
-    sw: ~numpy.ndarray
-        array of wavelengths for arc spectra
-
-    sf: ~numpy.ndarray
-        array of fluxes for arc spectra
-
-    """
-    thar_spec = specutils.io.read_fits.read_fits_spectrum1d(spectrafile, dispersion_unit=u.angstrom)
-    sw = thar_spec.wavelength.value
-    sf = thar_spec.flux.value
-
-
-    #read in arc lines
-    slines = np.loadtxt(linefile, usecols=(0,), unpack=True)
-    sfluxes = 0.0*slines
-
-    for i in range(len(slines)):
-        j = abs(thar_spec.wavelength-slines[i]*u.angstrom).argmin()
-        sfluxes[i] = thar_spec.flux[j]
-
-    return sw, sf, slines, sfluxes
 
 
 def identify(arc, order_frame, n_order, camera_name, xpos, ws=None, 
@@ -96,14 +54,10 @@ def identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
     #create a summed spectra by cross correlating each row
     xarr = np.arange(len(data[0]))
     flux = np.zeros_like(xarr)
-    dc_dict={}
-    for i in range(len(data)):
-        dc, nnf = zeropoint_shift(xarr, data[i,:], xarr, data[10,:], dx=5.0, nx=100, center=4.0)
-        dc_dict[i] = dc
-        flux += nnf
+    flux, shift_dict = collapse_array(data, i_reference=10)
+
     fdata = 0.0 * data
     fdata[10,:] = flux
-
 
     #set up the model
     fit_ws = mod.fitting.LinearLSQFitter()
@@ -116,6 +70,7 @@ def identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
         warr = warr.to(u.angstrom).value
         warr = warr + w_c(xarr)
         ws_init = mod.models.Legendre1D(3)
+        ws_init.domain = [xarr.min(), xarr.max()]
         nws = fit_ws(ws_init, xarr, warr)
         ws = WavelengthSolution.WavelengthSolution(xarr, warr, nws)
         ws.fit()
@@ -132,7 +87,7 @@ def identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
               method=method, smooth=smooth, filename=filename,
               subback=subback, textcolor=textcolor, log=log, verbose=True)
 
-    return dc_dict, iws
+    return shift_dict, iws
 
 
 if __name__=='__main__':
