@@ -100,7 +100,7 @@ def create_masterflat(image_list, masterbias=None):
 
 
 def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
-                      y_start=0, y_limit=None):
+                      smooth_fraction=0.2, y_start=0, y_limit=None):
     """Create an order frame from from an observation.
 
     A one dimensional detect_kernal is correlated with a column in the image.  The
@@ -128,6 +128,9 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
 
     smooth_length: int
         The length to smooth the images by prior to processing them
+
+    smooth_fraction: float
+        Fractional size of detect_kern that smooth_length should be
 
     y_start: int
         The initial value to start searching for the first maximum
@@ -198,7 +201,7 @@ def create_orderframe(data, first_order, xc, detect_kernal, smooth_length=15,
         dy2 = yarr[(order_frame[:,xc]==norder)].max()
         detect_kernal = 1.0 * ndata[dy1:dy2]
         nlen = len(detect_kernal)
-        smooth_length = max(3, int(0.2*nlen))
+        smooth_length = max(3, int(smooth_fraction*nlen))
         if nlen < 3: return order_frame
 
         # now remove the order from the data
