@@ -5,15 +5,18 @@
 import numpy as np
 
 from scipy import signal
+from scipy import ndimage as nd
 
 from astropy import stats
 from astropy import modeling as mod
 from astropy import units as u
 
+
 import specutils
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
-           'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift',
+           'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift', 
+           'clean_flatimage',
            'fit_wavelength_solution', 'create_linelists', 'collapse_array']
 
 def background(b_arr, niter=3):
@@ -175,6 +178,70 @@ def normalize_image(data, func_init, mask,
         return data / ndata * ndata.mean()
     else:
         return ndata
+
+def clean_flatimage(data, filter_size=101, flux_limit=0.1, block_size=100, percentile_low=30, median_size=5):
+    """Remove flux from data that is not in an order
+
+    This is an algorithm that removes inter-order flux from
+    an image and any background.  The first step is to determine
+    the position of the orders through a maximum filter of size
+    filter size being passed over the data.  Any flux less than
+    `flux_limit` * maximum flux will be removed.  The second
+    step is to search in boxes of block_size and remove any flux
+    which is lower than `percentile_low`  percentile in that box.  Finally
+    the data is median filtered to further remove any structures.
+
+    Parameters
+    ----------
+    data: numpy.ndarray
+       2D array to be cleaned
+
+    filter_size: int
+       Size of filter to use for maximum_filter
+
+    flux_limit: float
+       Lower limit of maximum flux to retain
+
+    block_size: int
+       Size of box to search over data
+
+    percentile_low: float
+       Lower percentile to remove data within box
+
+    median_size: int
+       Size for median filter to pass over data
+  
+    Returns
+    -------
+    norm: numpy.ndarray
+        cleaned image
+
+    """
+    norm = 1.0 * data
+    for i in range(len(norm[0])):
+        maxf = nd.filters.maximum_filter(norm[:,i], filter_size)
+        mask = (norm[:,i] < flux_limit*maxf)
+        norm[:,i][mask] = 0
+  
+    def _process_data(data, percentile_low=30, median_size=5):
+        data = data - np.percentile(data, percentile_low)
+        data[data<0] = 0
+        return nd.filters.median_filter(data, median_size)
+
+    i = 0
+    while i < len(norm):
+        j=0
+        y1 = i
+        y2 = min(i+block_size,  len(norm))
+        while j < len(norm[0]):
+            x1 = j
+            x2 = min(j+block_size, len(norm[0]))
+            norm[y1:y2, x1:x2] = _process_data(norm[y1:y2, x1:x2], percentile_low, median_size)
+            j = j + block_size
+        i = i + block_size
+
+
+    return norm
 
 
 def fit_wavelength_solution(sol_dict):
@@ -703,8 +770,7 @@ def collapse_array(data, i_reference):
         y =  data[i,:]
         xp, m0 = match_lines(xarr, y, x0, fp, m, npoints = 50, xlimit=5, slimit=0.1, wlimit=5)
         m = iterfit1D(xp, m0, fit_m, m_init)
-        shift_dict[i] = m
+        shift_dict[i] = m.copy()
         shift_flux = np.interp(xarr, m(xarr), y)
         flux += shift_flux
-
     return flux, shift_dict
