@@ -29,7 +29,7 @@ def identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
              target='upper', interp=True, w_c=None, 
              rstep=1, nrows=1, mdiff=20, wdiff=3, thresh=3, niter=5, dc=3, 
              ndstep=50, dsigma=5, method='Zeropoint', res=0.5, dres=0.01, 
-             filename=None, smooth=0, inter=True, subback=0, 
+             filename=None, smooth=0, inter=True, subback=False, 
              textcolor='green', log = None):
     """Run identify on a given order
     """
@@ -130,9 +130,11 @@ if __name__=='__main__':
             target = True
             res = 0.2
         elif arc.header['OBSMODE']=='LOW RESOLUTION':
-            xpos = 0.00
+            xpos = -0.30
             target = False
             res = 0.4
+            w_c = mod.models.Polynomial1D(2, c0=-0.0933573480342, c1=0.00101532206108, c2=-9.39770670751e-07)
+
 
     dc_dict, iws = identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
              target=target, interp=True, w_c=w_c,
