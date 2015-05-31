@@ -20,7 +20,7 @@ from specreduce import spectools as st
 from specreduce import WavelengthSolution
 
 
-from pyhrs import red_process
+from pyhrs import red_process, mode_setup_information
 from pyhrs import zeropoint_shift, create_linelists, collapse_array
 from pyhrs import HRSOrder, HRSModel
 
@@ -35,13 +35,7 @@ def identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
     """
     sw, sf, slines, sfluxes = create_linelists('thar_list.txt', 'thar.fits')
 
-#master_redbias=CCDData.read('RBIAS.fits')
-#arc = red_process('R201404290001.fits', masterbias=master_redbias)
-#arc.write('pR201404290001.fits')
-#exit()
-
-#this runs through the process to check the initial fit
-
+    #this runs through the process to check the initial fit
     hrs = HRSOrder(n_order)
     hrs.set_order_from_array(order_frame.data)
     hrs.set_flux_from_array(arc.data, flux_unit=arc.unit)
@@ -100,41 +94,7 @@ if __name__=='__main__':
  
     camera_name = arc.header['DETNAM'].lower()
 
-    res = 0.5
-    w_c = None
-    if camera_name=='hrdet':
-        arm = 'R'
-        if arc.header['OBSMODE']=='HIGH RESOLUTION':
-            xpos = -0.025
-            target = True
-            res = 0.1
-            w_c = mod.models.Polynomial1D(2, c0=0.440318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
-        elif arc.header['OBSMODE']=='MEDIUM RESOLUTION':
-            xpos = 0.00
-            target = True
-            res = 0.2
-        elif arc.header['OBSMODE']=='LOW RESOLUTION':
-            xpos = -0.825
-            target = False
-            res = 0.4
-            w_c = mod.models.Polynomial1D(2, c0=0.350898712753,c1=0.000948517538061,c2=-7.01229457881e-07)
-    else:
-        arm = 'H'
-        if arc.header['OBSMODE']=='HIGH RESOLUTION':
-            xpos = -0.025
-            target = True
-            res = 0.1
-            w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
-        elif arc.header['OBSMODE']=='MEDIUM RESOLUTION':
-            xpos = 0.00
-            target = True
-            res = 0.2
-        elif arc.header['OBSMODE']=='LOW RESOLUTION':
-            xpos = -0.30
-            target = False
-            res = 0.4
-            w_c = mod.models.Polynomial1D(2, c0=-0.0933573480342, c1=0.00101532206108, c2=-9.39770670751e-07)
-
+    arm, xpos, target, res, w_c = mode_setup_information(arc.header)
 
     dc_dict, iws = identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
              target=target, interp=True, w_c=w_c,
