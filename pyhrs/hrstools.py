@@ -16,7 +16,7 @@ import specutils
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
            'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift', 
-           'clean_flatimage',
+           'clean_flatimage', 'mode_setup_information',
            'fit_wavelength_solution', 'create_linelists', 'collapse_array']
 
 def background(b_arr, niter=3):
@@ -774,3 +774,65 @@ def collapse_array(data, i_reference):
         shift_flux = np.interp(xarr, m(xarr), y)
         flux += shift_flux
     return flux, shift_dict
+
+
+def mode_setup_information(header): 
+    """Return information needed for reductions for a given mode
+       based on the header 
+ 
+    Parameters
+    ----------
+    header: dict
+       Header information for the image
+ 
+    Returns
+    -------
+    arm: str
+        prefix for image
+
+    xpos: float
+
+    target: string
+        Whether the target is in the upper or lower fiber
+
+    res: 
+        An estimate for the resolution element for the mode
+
+    w_c: ~astropy.modeling.models
+        Correction to model for wavelength solution
+
+    """
+    if header['DETNAM'].lower()=='hrdet':
+        arm = 'R'
+        if header['OBSMODE']=='HIGH RESOLUTION':
+            xpos = -0.025
+            target = 'upper'
+            res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.440318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+        elif header['OBSMODE']=='MEDIUM RESOLUTION':
+            xpos = 0.00
+            target = 'upper'
+            res = 0.2
+        elif header['OBSMODE']=='LOW RESOLUTION':
+            xpos = -0.825
+            target = 'lower'
+            res = 0.4
+            w_c = mod.models.Polynomial1D(2, c0=0.350898712753,c1=0.000948517538061,c2=-7.01229457881e-07)
+    else:
+        arm = 'H'
+        if header['OBSMODE']=='HIGH RESOLUTION':
+            xpos = -0.025
+            target = 'upper'
+            res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+        elif header['OBSMODE']=='MEDIUM RESOLUTION':
+            xpos = 0.00
+            target = 'upper'
+            res = 0.2
+        elif header['OBSMODE']=='LOW RESOLUTION':
+            xpos = -0.30
+            target = 'lower'
+            res = 0.4
+            w_c = mod.models.Polynomial1D(2, c0=-0.0933573480342, c1=0.00101532206108, c2=-9.39770670751e-07)
+
+    return arm, xpos, target, res, w_c
