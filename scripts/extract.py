@@ -20,7 +20,7 @@ from specreduce import spectools as st
 from specreduce import WavelengthSolution
 
 
-from pyhrs import red_process
+from pyhrs import mode_setup_information
 from pyhrs import zeropoint_shift
 from pyhrs import HRSOrder, HRSModel
 
@@ -48,7 +48,7 @@ def write_spdict(outfile, sp_dict):
     tbhdu = fits.BinTableHDU.from_columns([c1,c2,c3])
     tbhdu.writeto(outfile, clobber=True)
 
-def extract_order(ccd, order_frame, n_order, ws, dc_dict, target=True, interp=False):
+def extract_order(ccd, order_frame, n_order, ws, shift_dict, target=True, interp=False):
     """Given a wavelength solution and offset, extract the order
 
     """
@@ -61,19 +61,24 @@ def extract_order(ccd, order_frame, n_order, ws, dc_dict, target=True, interp=Fa
     xarr = np.arange(len(data[0]))
     warr = ws(xarr)
     flux = np.zeros_like(xarr)
-    for i in dc_dict.keys():
+    for i in shift_dict.keys():
         if i < len(data):
-            dc = dc_dict[i]
-            shift_flux = np.interp(xarr+dc, xarr, data[i])
+            m = shift_dict[i]
+	    shift_flux = np.interp(xarr, m(xarr), data[i])
             data[i] = shift_flux
             flux += shift_flux
     return warr, flux
 
 
-def extract(ccd, order_frame, target=True, interp=False):
+def extract(ccd, order_frame, target='upper', interp=False):
     """Extract all of the orders and create a spectra table
 
     """
+    if target=='upper': 
+       target=True
+    else:
+       target=False
+
     #set up the orders
     min_order = int(order_frame.data[order_frame.data>0].min())
     max_order = int(order_frame.data[order_frame.data>0].max())
@@ -81,10 +86,10 @@ def extract(ccd, order_frame, target=True, interp=False):
     sp_dict = {}
     for n_order in np.arange(min_order, max_order):
         try:
-            dc_dict, ws = pickle.load(open('sol_%i.pkl' % n_order))
+            shift_dict, ws = pickle.load(open('tran_%i.pkl' % n_order))
         except:
             continue
-        w, f = extract_order(ccd, order_frame, n_order, ws, dc_dict, target=target, interp=interp)
+        w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
 	sp_dict[n_order] = [w,f]
 
     return sp_dict
@@ -96,7 +101,8 @@ if __name__=='__main__':
     ccd = CCDData.read(sys.argv[1])
     order_frame = CCDData.read(sys.argv[2], unit=u.adu)
 
-    sp_dict = extract(ccd, order_frame, interp=True, target=True)
+    rm, xpos, target, res, w_c =  mode_setup_information(ccd.header)
+    sp_dict = extract(ccd, order_frame, interp=True, target=target)
     outfile = sys.argv[1].replace('.fits', '_spec.fits')
 
     write_spdict(outfile, sp_dict)

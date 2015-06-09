@@ -3,13 +3,21 @@
 #from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import numpy as np
+
 from scipy import signal
+from scipy import ndimage as nd
+
 from astropy import stats
 from astropy import modeling as mod
+from astropy import units as u
+
+
+import specutils
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
-           'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift',
-           'fit_wavelength_solution']
+           'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift', 
+           'clean_flatimage', 'mode_setup_information',
+           'fit_wavelength_solution', 'create_linelists', 'collapse_array']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -170,6 +178,70 @@ def normalize_image(data, func_init, mask,
         return data / ndata * ndata.mean()
     else:
         return ndata
+
+def clean_flatimage(data, filter_size=101, flux_limit=0.1, block_size=100, percentile_low=30, median_size=5):
+    """Remove flux from data that is not in an order
+
+    This is an algorithm that removes inter-order flux from
+    an image and any background.  The first step is to determine
+    the position of the orders through a maximum filter of size
+    filter size being passed over the data.  Any flux less than
+    `flux_limit` * maximum flux will be removed.  The second
+    step is to search in boxes of block_size and remove any flux
+    which is lower than `percentile_low`  percentile in that box.  Finally
+    the data is median filtered to further remove any structures.
+
+    Parameters
+    ----------
+    data: numpy.ndarray
+       2D array to be cleaned
+
+    filter_size: int
+       Size of filter to use for maximum_filter
+
+    flux_limit: float
+       Lower limit of maximum flux to retain
+
+    block_size: int
+       Size of box to search over data
+
+    percentile_low: float
+       Lower percentile to remove data within box
+
+    median_size: int
+       Size for median filter to pass over data
+  
+    Returns
+    -------
+    norm: numpy.ndarray
+        cleaned image
+
+    """
+    norm = 1.0 * data
+    for i in range(len(norm[0])):
+        maxf = nd.filters.maximum_filter(norm[:,i], filter_size)
+        mask = (norm[:,i] < flux_limit*maxf)
+        norm[:,i][mask] = 0
+  
+    def _process_data(data, percentile_low=30, median_size=5):
+        data = data - np.percentile(data, percentile_low)
+        data[data<0] = 0
+        return nd.filters.median_filter(data, median_size)
+
+    i = 0
+    while i < len(norm):
+        j=0
+        y1 = i
+        y2 = min(i+block_size,  len(norm))
+        while j < len(norm[0]):
+            x1 = j
+            x2 = min(j+block_size, len(norm[0]))
+            norm[y1:y2, x1:x2] = _process_data(norm[y1:y2, x1:x2], percentile_low, median_size)
+            j = j + block_size
+        i = i + block_size
+
+
+    return norm
 
 
 def fit_wavelength_solution(sol_dict):
@@ -500,7 +572,7 @@ def match_lines(xarr, farr, sw, sf, ws, rw=5, npoints=20, xlimit=1.0, slimit=1.0
        defined such that wavelength = ws(xarr)
 
     rw: float
-         Radius around peak to extract for fitting the center
+         Radius in pixels around peak to extract for fitting the center
 
     npoints: int
          The maximum number of points to bright points to fit.
@@ -617,4 +689,155 @@ def zeropoint_shift(xarr, flux, reference_xarr, reference_flux, dx=5.0, nx=100, 
     shift_flux = np.interp(reference_xarr+dc, xarr, flux)
     return dc, shift_flux
 
+def create_linelists(linefile, spectrafile):
+    """Create line lists reads in the line list file in two different formats
 
+    Parameters
+    ----------
+    linefile: str
+        Name of file with wavelengths of arc lines
+
+    spectrafile: str
+        FITS file of a spectra of an arc lamp
+
+    Returns
+    -------
+    slines: ~numpy.ndarray
+        Arrary of wavelengths of arc lines
+
+    sfluxes: ~numpy.ndarray
+        Array of fluxes at each wavelength
+
+    sw: ~numpy.ndarray
+        array of wavelengths for arc spectra
+
+    sf: ~numpy.ndarray
+        array of fluxes for arc spectra
+
+    """
+    thar_spec = specutils.io.read_fits.read_fits_spectrum1d(spectrafile, dispersion_unit=u.angstrom)
+    sw = thar_spec.wavelength.value
+    sf = thar_spec.flux.value
+
+
+    #read in arc lines
+    slines = np.loadtxt(linefile, usecols=(0,), unpack=True)
+    sfluxes = 0.0*slines
+
+    for i in range(len(slines)):
+        j = abs(thar_spec.wavelength-slines[i]*u.angstrom).argmin()
+        sfluxes[i] = thar_spec.flux[j]
+
+    return sw, sf, slines, sfluxes
+
+
+def collapse_array(data, i_reference):
+    """Given an array, determine the best shift between each row and then co-add
+
+    Parameters
+    ----------
+    data: ~numpy.ndarray
+        A 2D array for an image of a single fiber
+
+    i_reference: int
+        Row to which match the other rows
+
+
+    Returns 
+    -------
+    flux: ~numpy.ndarray
+        Co-addition of all rows  in data after finding the appropriate
+        shift for each row.
+
+    """
+    xarr = np.arange(len(data[0]))
+    flux = np.zeros_like(xarr)
+
+    #set up the reference positions
+    y0 = data[i_reference,:]
+    xp = np.array(signal.find_peaks_cwt(y0, np.array([3])))
+    fp = y0[xp]
+    m_init = mod.models.Polynomial1D(2)
+    fit_m = mod.fitting.LinearLSQFitter()
+    m = fit_m(m_init, xp, xp)
+    #this step is just run to really get the centroid positions
+    xp, wp = match_lines(xarr, y0, xp, fp, m, npoints = 50, xlimit=5, slimit=0.1, wlimit=5)
+    x0 = np.array(xp)
+
+    #now find the match for each row 
+    shift_dict={}
+    for i in np.arange(len(data)):
+        y =  data[i,:]
+        xp, m0 = match_lines(xarr, y, x0, fp, m, npoints = 50, xlimit=5, slimit=0.1, wlimit=5)
+        m = iterfit1D(xp, m0, fit_m, m_init)
+        shift_dict[i] = m.copy()
+        shift_flux = np.interp(xarr, m(xarr), y)
+        flux += shift_flux
+    return flux, shift_dict
+
+
+def mode_setup_information(header): 
+    """Return information needed for reductions for a given mode
+       based on the header 
+ 
+    Parameters
+    ----------
+    header: dict
+       Header information for the image
+ 
+    Returns
+    -------
+    arm: str
+        prefix for image
+
+    xpos: float
+
+    target: string
+        Whether the target is in the upper or lower fiber
+
+    res: 
+        An estimate for the resolution element for the mode
+
+    w_c: ~astropy.modeling.models
+        Correction to model for wavelength solution
+
+    """
+    if header['DETNAM'].lower()=='hrdet':
+        arm = 'R'
+        if header['OBSMODE']=='HIGH RESOLUTION':
+            xpos = -0.025
+            target = 'upper'
+            res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.440318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+        elif header['OBSMODE']=='MEDIUM RESOLUTION':
+            xpos = 1.325
+            target = 'upper'
+            res = 0.2
+            w_c = mod.models.Polynomial1D(2, c0=-0.566869781923, c1=0.00136529716199, 
+                              c2=-6.36217218931e-07)
+
+        elif header['OBSMODE']=='LOW RESOLUTION':
+            xpos = -0.825
+            target = 'lower'
+            res = 0.4
+            w_c = mod.models.Polynomial1D(2, c0=0.350898712753,c1=0.000948517538061,c2=-7.01229457881e-07)
+    else:
+        arm = 'H'
+        if header['OBSMODE']=='HIGH RESOLUTION':
+            xpos = -0.025
+            target = 'upper'
+            res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+        elif header['OBSMODE']=='MEDIUM RESOLUTION':
+            xpos = 1.55
+            target = 'upper'
+            res = 0.2
+            w_c = mod.models.Polynomial1D(2, c0=-0.26996285172, c1=0.000936845602323, c2=-5.97067772021e-07)
+
+        elif header['OBSMODE']=='LOW RESOLUTION':
+            xpos = -0.30
+            target = 'lower'
+            res = 0.4
+            w_c = mod.models.Polynomial1D(2, c0=-0.0933573480342, c1=0.00101532206108, c2=-9.39770670751e-07)
+
+    return arm, xpos, target, res, w_c

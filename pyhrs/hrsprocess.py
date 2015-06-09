@@ -314,12 +314,33 @@ def blue_process(infile, masterbias=None, error=False, rdnoise=None):
     # check to make sure it is a blue file
 
     # reduce file
-    blueamp = ['[1:1050,:]', '[1051:2100,:]']
-    bluescan = ['[1:26,:]', '[1025:1050,:]']
-    bluetrim = ['[27:1050,:]', '[1:1024,:]']
+    try: 
+        ccd = ccdproc.CCDData.read(infile, unit=u.adu)
+        blueamp = [ccd.header['AMPSEC'].strip()]
+        bluescan = [ccd.header['BIASSEC'].strip()]
+        bluetrim = [ccd.header['DATASEC'].strip()]
+    except:
+        blueamp = ['[1:1050,:]', '[1051:2100,:]']
+        bluescan = ['[1:26,:]', '[1025:1050,:]']
+        bluetrim = ['[27:1050,:]', '[1:1024,:]']
+    flip = True
     ccd = hrs_process(infile, ampsec=blueamp, oscansec=bluescan,
                       trimsec=bluetrim, masterbias=masterbias, error=error,
-                      rdnoise=None, flip=True)
+                      rdnoise=None, flip=flip)
+    try:
+        namps = ccd.header['CCDAMPS']
+    except KeyError:
+        namps = ccd.header['CCDNAMPS']
+
+    #this is in place to deal with changes from one amp to two
+    if namps == 1:
+        ccd.data = ccd.data[:, ::-1]
+        if (ccd.mask is not None):
+            ccd.mask = ccd.mask[:, ::-1]
+        if (ccd.uncertainty is not None):
+            ccd.uncertainty = ccd.uncertainty[:, ::-1]
+        
+
     return ccd
 
 
