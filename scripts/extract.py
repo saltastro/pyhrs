@@ -86,7 +86,7 @@ def extract(ccd, order_frame, target='upper', interp=False):
     sp_dict = {}
     for n_order in np.arange(min_order, max_order):
         try:
-            shift_dict, ws = pickle.load(open('tran_%i.pkl' % n_order))
+            shift_dict, ws = pickle.load(open('sol_%i.pkl' % n_order))
         except:
             continue
         w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
