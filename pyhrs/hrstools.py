@@ -809,18 +809,24 @@ def mode_setup_information(header):
             target = 'upper'
             res = 0.1
             w_c = mod.models.Polynomial1D(2, c0=0.440318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+            y1 = 4 
+            y2 = 28
         elif header['OBSMODE']=='MEDIUM RESOLUTION':
             xpos = 1.325
             target = 'upper'
             res = 0.2
             w_c = mod.models.Polynomial1D(2, c0=-0.566869781923, c1=0.00136529716199, 
                               c2=-6.36217218931e-07)
+            y1 = 3 
+            y2 = 25
 
         elif header['OBSMODE']=='LOW RESOLUTION':
             xpos = -0.825
             target = 'lower'
             res = 0.4
             w_c = mod.models.Polynomial1D(2, c0=0.350898712753,c1=0.000948517538061,c2=-7.01229457881e-07)
+            y1 = 2 
+            y2 = 14
     else:
         arm = 'H'
         if header['OBSMODE']=='HIGH RESOLUTION':
@@ -828,16 +834,22 @@ def mode_setup_information(header):
             target = 'upper'
             res = 0.1
             w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+            y1 = 3 
+            y2 = 21
         elif header['OBSMODE']=='MEDIUM RESOLUTION':
             xpos = 1.55
             target = 'upper'
             res = 0.2
             w_c = mod.models.Polynomial1D(2, c0=-0.26996285172, c1=0.000936845602323, c2=-5.97067772021e-07)
+            y1 = 3 
+            y2 = 21
 
         elif header['OBSMODE']=='LOW RESOLUTION':
             xpos = -0.30
             target = 'lower'
             res = 0.4
             w_c = mod.models.Polynomial1D(2, c0=-0.0933573480342, c1=0.00101532206108, c2=-9.39770670751e-07)
+            y1 = 2 
+            y2 = 9
 
-    return arm, xpos, target, res, w_c
+    return arm, xpos, target, res, w_c, y1, y2
