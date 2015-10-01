@@ -48,7 +48,7 @@ def write_spdict(outfile, sp_dict):
     tbhdu = fits.BinTableHDU.from_columns([c1,c2,c3])
     tbhdu.writeto(outfile, clobber=True)
 
-def extract_order(ccd, order_frame, n_order, ws, shift_dict, target=True, interp=False):
+def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, target=True, interp=False):
     """Given a wavelength solution and offset, extract the order
 
     """
@@ -61,16 +61,19 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, target=True, interp
     xarr = np.arange(len(data[0]))
     warr = ws(xarr)
     flux = np.zeros_like(xarr)
+    weight = 0
     for i in shift_dict.keys():
-        if i < len(data):
+        if i < len(data) and i >= y1 and i <= y2:
             m = shift_dict[i]
 	    shift_flux = np.interp(xarr, m(xarr), data[i])
             data[i] = shift_flux
-            flux += shift_flux
-    return warr, flux
+            flux += shift_flux * np.median(shift_flux)
+            weight += np.median(shift_flux)
+    pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
+    return warr, flux/weight
 
 
-def extract(ccd, order_frame, target='upper', interp=False):
+def extract(ccd, order_frame, soldir, target='upper', interp=False):
     """Extract all of the orders and create a spectra table
 
     """
@@ -82,11 +85,10 @@ def extract(ccd, order_frame, target='upper', interp=False):
     #set up the orders
     min_order = int(order_frame.data[order_frame.data>0].min())
     max_order = int(order_frame.data[order_frame.data>0].max())
-    print min_order, max_order
     sp_dict = {}
     for n_order in np.arange(min_order, max_order):
         try:
-            shift_dict, ws = pickle.load(open('sol_%i.pkl' % n_order))
+            shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
         except:
             continue
         w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
@@ -100,9 +102,10 @@ if __name__=='__main__':
    
     ccd = CCDData.read(sys.argv[1])
     order_frame = CCDData.read(sys.argv[2], unit=u.adu)
+    soldir = sys.argv[3]
 
-    rm, xpos, target, res, w_c =  mode_setup_information(ccd.header)
-    sp_dict = extract(ccd, order_frame, interp=True, target=target)
+    rm, xpos, target, res, w_c, y1, y2 =  mode_setup_information(ccd.header)
+    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target)
     outfile = sys.argv[1].replace('.fits', '_spec.fits')
 
     write_spdict(outfile, sp_dict)

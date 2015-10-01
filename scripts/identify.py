@@ -94,7 +94,7 @@ if __name__=='__main__':
  
     camera_name = arc.header['DETNAM'].lower()
 
-    arm, xpos, target, res, w_c = mode_setup_information(arc.header)
+    arm, xpos, target, res, w_c, y1, y2 = mode_setup_information(arc.header)
 
     dc_dict, iws = identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
              target=target, interp=True, w_c=w_c,
