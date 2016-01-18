@@ -60,7 +60,7 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, target
 
     xarr = np.arange(len(data[0]))
     warr = ws(xarr)
-    flux = np.zeros_like(xarr)
+    flux = np.zeros_like(xarr, dtype=float)
     weight = 0
     for i in shift_dict.keys():
         if i < len(data) and i >= y1 and i <= y2:
