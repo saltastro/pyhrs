@@ -1,6 +1,7 @@
 
 import sys
 from astropy.io import fits
+import numpy as np
 import glob
 from pylab import *
 
@@ -19,5 +20,6 @@ order = hdu[1].data['Order']
 for o in sys.argv[2:]:
    o = int(o)
    mask = (order==o)
+   flux[mask] = np.convolve(flux[mask], np.ones(10), 'same')
    plot(wave[mask], flux[mask])
 show()
