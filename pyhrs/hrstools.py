@@ -769,6 +769,7 @@ def collapse_array(data, i_reference):
     for i in np.arange(len(data)):
         y =  data[i,:]
         xp, m0 = match_lines(xarr, y, x0, fp, m, npoints = 50, xlimit=5, slimit=0.1, wlimit=5)
+        if len(xp) < 2: continue
         m = iterfit1D(xp, m0, fit_m, m_init)
         shift_dict[i] = m.copy()
         shift_flux = np.interp(xarr, m(xarr), y)
