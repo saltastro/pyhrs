@@ -751,7 +751,7 @@ def collapse_array(data, i_reference):
 
     """
     xarr = np.arange(len(data[0]))
-    flux = np.zeros_like(xarr)
+    flux = np.zeros_like(xarr, dtype=float)
 
     #set up the reference positions
     y0 = data[i_reference,:]
