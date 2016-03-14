@@ -17,4 +17,5 @@ Status reports for developers
 .. image:: https://coveralls.io/repos/saltastro/pyhrs/badge.png 
     :target: https://coveralls.io/r/saltastro/pyhrs
 
-
+.. image:: https://zenodo.org/badge/12153/saltastro/pyhrs.svg
+   :target: https://zenodo.org/badge/latestdoi/12153/saltastro/pyhrs
