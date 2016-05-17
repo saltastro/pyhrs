@@ -7,6 +7,8 @@ Southern African Large Telescope.
 Documentation is at `pyhrs.readthedocs.org
 <http://pyhrs.readthedocs.org/en/latest/>`_
 
+Fora  quick start and use of the scripts, see the `Basic Usage instructions <https://github.com/saltastro/pyhrs/wiki/Basic-Usage-Instructions>`_
+
 Status reports for developers
 -----------------------------
 
