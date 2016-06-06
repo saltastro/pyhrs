@@ -250,7 +250,8 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
 
     if namps == 1:
         gain = float(ccd.header['gain'].split()[0]) * u.electron / u.adu
-        nccd = ccd_process(ccd, oscan=oscansec[0], trim=trimsec[0],
+        #nccd = ccd_process(ccd, oscan=oscansec[0], trim=trimsec[0],
+        nccd = ccd_process(ccd, oscan=None, trim=trimsec[0],
                            error=error, masterbias=masterbias,
                            bad_pixel_mask=bad_pixel_mask, gain=gain,
                            rdnoise=rdnoise, oscan_median=oscan_median,
