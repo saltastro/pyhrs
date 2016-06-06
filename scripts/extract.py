@@ -48,7 +48,7 @@ def write_spdict(outfile, sp_dict):
     tbhdu = fits.BinTableHDU.from_columns([c1,c2,c3])
     tbhdu.writeto(outfile, clobber=True)
 
-def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, target=True, interp=False):
+def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=None, target=True, interp=False):
     """Given a wavelength solution and offset, extract the order
 
     """
@@ -59,7 +59,10 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, target
     data, coef = hrs.create_box(hrs.flux, interp=interp)
 
     xarr = np.arange(len(data[0]))
-    warr = ws(xarr)
+    if order is None:
+       warr = ws(xarr)
+    else:
+       warr = ws(xarr, order*np.ones_like(xarr))
     flux = np.zeros_like(xarr, dtype=float)
     weight = 0
     for i in shift_dict.keys():
@@ -82,16 +85,26 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False):
     else:
        target=False
 
+    if os.path.isdir(soldir):
+       sdir=True
+    else:
+       sdir=False
+    print sdir
+
     #set up the orders
     min_order = int(order_frame.data[order_frame.data>0].min())
     max_order = int(order_frame.data[order_frame.data>0].max())
     sp_dict = {}
     for n_order in np.arange(min_order, max_order):
-        try:
+        if sdir is True:
+            if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): return
             shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
-        except:
-            continue
-        w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+        else:
+            shift_all, ws = pickle.load(open(soldir))
+            if n_order not in shift_all.keys(): continue
+            w, f = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
+
 	sp_dict[n_order] = [w,f]
 
     return sp_dict
