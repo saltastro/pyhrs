@@ -19,3 +19,4 @@ if not _ASTROPY_SETUP_:
     from calibrationframes import *
     from hrstools import *
     from extraction import *
+    from wavelengthsolution import *
