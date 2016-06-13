@@ -89,7 +89,6 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False):
        sdir=True
     else:
        sdir=False
-    print sdir
 
     #set up the orders
     min_order = int(order_frame.data[order_frame.data>0].min())
@@ -97,7 +96,7 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False):
     sp_dict = {}
     for n_order in np.arange(min_order, max_order):
         if sdir is True:
-            if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): return
+            if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): continue 
             shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
             w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
         else:
@@ -106,7 +105,6 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False):
             w, f = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
 
 	sp_dict[n_order] = [w,f]
-
     return sp_dict
 
 
