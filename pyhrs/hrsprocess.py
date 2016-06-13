@@ -119,17 +119,6 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
     else:
         raise TypeError('trim is not None or a string')
 
-    # test subtracting the master bias
-    if isinstance(masterbias, ccdproc.CCDData):
-        nccd = ccdproc.subtract_bias(nccd, masterbias)
-    elif isinstance(masterbias, np.ndarray):
-        nccd.data = nccd.data - masterbias
-    elif masterbias is None:
-        pass
-    else:
-        raise TypeError(
-            'masterbias is not None, numpy.ndarray,  or a CCDData object')
-
     # create the error frame
     if error and gain is not None and rdnoise is not None:
         nccd = ccdproc.create_deviation(nccd, gain=gain, rdnoise=rdnoise)
@@ -152,6 +141,18 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
         pass
     else:
         raise TypeError('gain is not None or astropy.Quantity')
+
+    # test subtracting the master bias
+    if isinstance(masterbias, ccdproc.CCDData):
+        nccd = ccdproc.subtract_bias(nccd, masterbias)
+    elif isinstance(masterbias, np.ndarray):
+        nccd.data = nccd.data - masterbias
+    elif masterbias is None:
+        pass
+    else:
+        raise TypeError(
+            'masterbias is not None, numpy.ndarray,  or a CCDData object')
+
 
 
     return nccd
