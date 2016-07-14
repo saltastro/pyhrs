@@ -11,9 +11,9 @@ from astropy import units as u
 from astropy import modeling as mod
 from astropy.io import fits
 
-import pylab as pl
 
 import specreduce
+import pylab as pl
 
 from specreduce.interidentify import InterIdentify
 from specreduce import spectools as st
