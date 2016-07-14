@@ -252,8 +252,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
 
     if namps == 1:
         gain = float(ccd.header['gain'].split()[0]) * u.electron / u.adu
-        #nccd = ccd_process(ccd, oscan=oscansec[0], trim=trimsec[0],
-        nccd = ccd_process(ccd, oscan=None, trim=trimsec[0],
+        nccd = ccd_process(ccd, oscan=oscansec[0], trim=trimsec[0],
                            error=error, masterbias=masterbias,
                            bad_pixel_mask=bad_pixel_mask, gain=gain,
                            rdnoise=rdnoise, oscan_median=oscan_median,
@@ -311,7 +310,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
     return nccd
 
 
-def blue_process(infile, masterbias=None, error=False, rdnoise=None):
+def blue_process(infile, masterbias=None, error=False, rdnoise=None, oscan_correct=False):
     """Process a blue frame
     """
     # check to make sure it is a blue file
@@ -325,13 +324,19 @@ def blue_process(infile, masterbias=None, error=False, rdnoise=None):
     # reduce file
     try: 
         blueamp = [ccd.header['AMPSEC'].strip()]
-        bluescan = [ccd.header['BIASSEC'].strip()]
+        if oscan_correct:
+            bluescan = [ccd.header['BIASSEC'].strip()]
+        else:
+            bluescan = [None]
         bluetrim = [ccd.header['DATASEC'].strip()]
         #ugly hack for when two amps
         if namps>1: raise Exception()
     except:
         blueamp = ['[1:1050,:]', '[1051:2100,:]']
-        bluescan = ['[1:26,:]', '[1025:1050,:]']
+        if oscan_correct:
+            bluescan = ['[1:26,:]', '[1025:1050,:]']
+        else:
+            bluescan = [None, None]
         bluetrim = ['[27:1050,:]', '[1:1024,:]']
 
     flip = True
@@ -350,11 +355,14 @@ def blue_process(infile, masterbias=None, error=False, rdnoise=None):
     return ccd
 
 
-def red_process(infile, masterbias=None, error=None, rdnoise=None):
+def red_process(infile, masterbias=None, error=None, rdnoise=None, oscan_correct=False):
     """Process a blue frame
     """
     redamp = ['[1:4122,1:4112]']
-    redscan = ['[1:25,1:4112]']
+    if oscan_correct:
+        redscan = ['[1:25,1:4112]']
+    else:
+        redscan = [None]
     redtrim = ['[27:4122,1:4112]']
     ccd = hrs_process(infile, ampsec=redamp, oscansec=redscan,
                       trimsec=redtrim, masterbias=masterbias, error=error,
