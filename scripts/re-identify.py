@@ -107,7 +107,7 @@ if __name__=='__main__':
              target=target, interp=True, w_c=w_c,
              rstep=1, nrows=2, mdiff=20, wdiff=3, thresh=3, niter=5, dc=3,
              ndstep=50, dsigma=5, method='Zeropoint', res=res, dres=res/10.0,
-             filename=None, smooth=0, inter=True, subback=0,
+             filename=None, smooth=3, inter=True, subback=0,
              textcolor='black', log = None)
 
     k = iws.keys()[0]
