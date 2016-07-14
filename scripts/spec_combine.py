@@ -66,6 +66,7 @@ for order in range(min_order, max_order):
             if mdata[j][i] < s+1.5*e:
                flux[i] += mdata[j][i]
                count[i] += 1
+    count[count==0] = 1
     flux = flux / count
     sp_dict[order] = [wave, flux]
     
