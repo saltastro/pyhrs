@@ -1,4 +1,4 @@
-#script is was heavily based on ipython notebook created by Steve Crawford
+#script was heavily based on ipython notebook created by Steve Crawford
 
 import glob
 import os
@@ -38,7 +38,7 @@ def create_list_folder():
        List of HRS red frames in the running directory
 
    """
-   path=os.getcwd()+os.pathsep #get current directory
+   path=os.getcwd()+os.sep #get current directory
    blue_files = glob.glob('%sH201*.fits'%path)
    red_files = glob.glob('%sR201*.fits'%path)
    return blue_files,red_files
@@ -140,27 +140,48 @@ def write_bias_flat_arc(files):
    if not(hbias_list==[]):
       master_bluebias = create_masterbias(hbias_list)
       master_bluebias.write('HBIAS.fits', clobber=True)
+      print("\nCreated blue masterbias\n")
       #this step is just inserted for debugging purposes
       master_bluebias = CCDData.read('HBIAS.fits', ignore_missing_end=True)
+      gc.collect()
+   if not(hflat_list==[]):
+      master_blueflat = create_masterflat(hflat_list) #if bias was created it should probably be "create_masterflat(hflat_list,masterbias=master_bluebias)", but it generates an error
+      master_blueflat.write('HFLAT.fits', clobber=True)
+      del master_blueflat
+      gc.collect()
+      print("\nCreated blue masterflat\n")
+   if not(harc_list==[]): 
+      master_bluearc = create_masterflat(harc_list) #if bias was created it should probably be  "create_masterflat(hflat_list,masterbias=master_bluebias)", but it generates an error
+      master_bluearc.write('HARC.fits', clobber=True)
+      del master_bluearc
+      gc.collect()
+      print("\nCreated blue masterarc\n")
+   del master_bluebias 
+   gc.collect()
+
    if not(rbias_list==[]):
       master_redbias = create_masterbias(rbias_list)
       master_redbias.write('RBIAS.fits', clobber=True)
+      print("\nCreated red masterbias\n")
       #this step is just inserted for debugging purposes
       master_redbias = CCDData.read('RBIAS.fits', ignore_missing_end=True)
+      gc.collect()
 
-   if not(hflat_list==[]):
-      master_blueflat = create_masterflat(hflat_list) #when bias was created it should probably be "create_masterflat(hflat_list,masterbias=master_bluebias)", but it generates error
-      master_blueflat.write('HFLAT.fits', clobber=True)
    if not(rflat_list==[]):
-      master_redflat = create_masterflat(rflat_list)#when bias was created it should probably be "create_masterflat(rflat_list,masterbias=master_rluebias)", but it generates error
+      master_redflat = create_masterflat(rflat_list)#if bias was created it should probably be "create_masterflat(rflat_list,masterbias=master_rluebias)", but it generates an error
       master_redflat.write('RFLAT.fits', clobber=True)
+      del master_redflat
+      gc.collect()
+      print("\nCreated red masterflat\n")
 
-   if not(harc_list==[]): 
-      master_bluearc = create_masterflat(harc_list) #when bias was created it should probably be  "create_masterflat(hflat_list,masterbias=master_bluebias)", but it generates error
-      master_bluearc.write('HARC.fits', clobber=True)
    if not(rarc_list==[]): 
       master_redarc = create_masterflat(rarc_list)
       master_redarc.write('RARC.fits', clobber=True)
+      del master_redarc
+      gc.collect()
+      print("\nCreated red masterarc\n")
+   del master_redbias 
+   gc.collect()
 
    return True
 
