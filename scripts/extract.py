@@ -24,7 +24,7 @@ from pyhrs import mode_setup_information
 from pyhrs import zeropoint_shift
 from pyhrs import HRSOrder, HRSModel
 
-def write_spdict(outfile, sp_dict):
+def write_spdict(outfile, sp_dict, header=None):
     
     o_arr = None
     w_arr = None
@@ -46,7 +46,9 @@ def write_spdict(outfile, sp_dict):
     c3 = fits.Column(name='Order', format='I', array=o_arr)
 
     tbhdu = fits.BinTableHDU.from_columns([c1,c2,c3])
-    tbhdu.writeto(outfile, clobber=True)
+    prihdu = fits.PrimaryHDU(header=header)
+    thdulist = fits.HDUList([prihdu, tbhdu])
+    thdulist.writeto(outfile, clobber=True)
 
 def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=None, target=True, interp=False):
     """Given a wavelength solution and offset, extract the order
@@ -119,5 +121,5 @@ if __name__=='__main__':
     sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target)
     outfile = sys.argv[1].replace('.fits', '_spec.fits')
 
-    write_spdict(outfile, sp_dict)
+    write_spdict(outfile, sp_dict, header=ccd.header)
 
