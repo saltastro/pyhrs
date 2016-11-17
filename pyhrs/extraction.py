@@ -17,7 +17,7 @@ from scipy import ndimage as nd
 from .hrstools import *
 from .hrsorder import HRSOrder
 
-__all__=['simple_extract_order', 'extract_science']
+__all__=['simple_extract_order', 'extract_science', 'normalize_order', 'normalize_spectra', 'stitch_spectra']
 
 def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None, interp=False):
     """Simple_extract_order transforms the observed spectra into a square form, 
@@ -126,7 +126,91 @@ def extract_science(ccd, wave_frame, order_frame, target_fiber=None,  extract_fu
         if np.any(hrs.wavelength>0):
             w,f = extract_func(hrs, **kwargs)
             spectra_dict[n_order] = [w,f]
-        print(n_order)
        
     return spectra_dict
 
+def normalize_order(wavelength, flux, model=mod.models.Chebyshev1D(2), fitter=mod.fitting.LinearLSQFitter()):
+    """Givne a spectra, fit a model to the spectra and remove it
+
+    Parameters
+    ----------
+    wavelength: numpy.ndarray
+       List of wavelenghts
+
+    flux: numpy.ndarray
+       flux of the array
+
+    model: astropy.modeling.models
+       Model for the continuum
+
+    fitter: astropy.modeling.fitting
+       Fitter used to fit the model
+
+    Returns
+    -------
+    Normalized flux: numpy.ndarray
+       Normalized flux for the spectra
+
+    """
+    f = fitter(model, wavelength, flux) 
+    return flux/f(wavelength) 
+
+def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2), 
+                    fitter=None):
+    """Givne a spectra, fit a model to the spectra and remove it
+
+    Parameters
+    ----------
+    wavelength: numpy.ndarray
+       List of wavelenghts
+
+    flux: numpy.ndarray
+       flux of the array
+
+    model: astropy.modeling.models
+       Model for the continuum
+
+    fitter: astropy.modeling.fitting
+       Fitter used to fit the model
+
+    """
+    n_orders = np.array(spectra_dict.keys())
+    o = n_orders.min()+1
+    w,f = spectra_dict[o]
+    xarr = np.arange(len(w))
+    farr = np.zeros(len(w))
+    for o in range(n_orders.min()+1, n_orders.max()+1):
+        farr += spectra_dict[o][1]
+    f = fitter(model, xarr, farr)
+    for o in range(n_orders.min()+1, n_orders.max()+1):
+        spectra_dict[o][1] = spectra_dict[o][1] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
+    return spectra_dict
+
+def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitter=None):
+    """Give a spectra, stitch the spectra together
+
+    Parameters
+    ----------
+    spectra_dict: dict
+        Dictionary containing wavelenghts and fluxes
+
+    normalize_order: bool
+        Normalize the individual orders
+  
+    """
+    warr = None
+    for o in range(n_min, n_max):
+          w,f = spectra_dict[o]
+          if np.all(np.isnan(f)): continue
+          f[np.isnan(f)] = 0
+          if normalize:
+              f = normalize_order(w, f, model=model, fitter=fitter)
+          if warr is None:
+             warr = 1.0 * w
+             farr = 1.0 * f
+          else:
+             warr = np.concatenate([warr, w])
+             farr = np.concatenate([farr, f])
+
+    i = warr.argsort()
+    return warr[i], farr[i]
