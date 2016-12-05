@@ -12,7 +12,7 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description='Process SALT HRS observations')
     parser.add_argument('infile', help='SALT HRS image')
-    parser.add_argument('mccd', help='Master bias file')
+    parser.add_argument('--b', dest='mccd', help='Master bias file')
     parser.add_argument('--o', dest='order', help='Master order file')
     parser.add_argument('--f', dest='flat', help='Master flat file')
     parser.add_argument('-s', dest='oscan', default=False, action='store_true', help='Apply overscan correction')
@@ -20,7 +20,10 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     infile = args.infile
-    mccd = CCDData.read(args.mccd, unit='electron')
+    if args.mccd:
+        mccd = CCDData.read(args.mccd, unit='electron')
+    else:
+        mccd = None
 
     if os.path.basename(infile).startswith('H'):
          ccd = blue_process(infile, masterbias=mccd, oscan_correct=args.oscan)
@@ -42,6 +45,7 @@ if __name__=='__main__':
           ccd.mask = crmask
        else:
           ccd.mask = ccd.mask * crmask
+
     if args.flat:
        order_frame = CCDData.read(args.order, unit=u.adu)
        flat_frame = CCDData.read(args.flat)
