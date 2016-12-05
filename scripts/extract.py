@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 import numpy as np
 import pickle
 
@@ -12,12 +13,7 @@ from astropy import modeling as mod
 from astropy.io import fits
 
 
-import specreduce
 import pylab as pl
-
-from specreduce.interidentify import InterIdentify
-from specreduce import spectools as st
-from specreduce import WavelengthSolution
 
 
 from pyhrs import mode_setup_information
@@ -72,13 +68,13 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
             m = shift_dict[i]
 	    shift_flux = np.interp(xarr, m(xarr), data[i])
             data[i] = shift_flux
-            flux += shift_flux * np.median(shift_flux)
-            weight += np.median(shift_flux)
+            flux += shift_flux # * np.median(shift_flux)
+            weight += 1 #np.median(shift_flux)
     pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
-    return warr, flux/weight
+    return warr, flux #/weight
 
 
-def extract(ccd, order_frame, soldir, target='upper', interp=False):
+def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
     """Extract all of the orders and create a spectra table
 
     """
@@ -97,11 +93,18 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False):
     max_order = int(order_frame.data[order_frame.data>0].max())
     sp_dict = {}
     for n_order in np.arange(min_order, max_order):
-        if sdir is True:
+        if sdir is True and twod is False:
             if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): continue 
             shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
             w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
-        else:
+
+        if sdir is False and twod is False:
+            sol_dict = pickle.load(open(soldir, 'rb'))
+            if n_order not in sol_dict.keys(): continue
+            ws, shift_dict = sol_dict[n_order]
+            w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+
+        if sdir is False and twod is True:
             shift_all, ws = pickle.load(open(soldir))
             if n_order not in shift_all.keys(): continue
             w, f = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
@@ -112,13 +115,19 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False):
 
 if __name__=='__main__':
 
-   
-    ccd = CCDData.read(sys.argv[1])
-    order_frame = CCDData.read(sys.argv[2], unit=u.adu)
-    soldir = sys.argv[3]
+    parser = argparse.ArgumentParser(description='Excract SALT HRS observations')
+    parser.add_argument('infile', help='SALT HRS image')
+    parser.add_argument('order', help='Master order file')
+    parser.add_argument('soldir', help='Master bias file')
+    parser.add_argument('-2', dest='twod', default=False, action='store_true', help='2D solution')
+    args = parser.parse_args()
+
+    ccd = CCDData.read(args.infile)
+    order_frame = CCDData.read(args.order, unit=u.adu)
+    soldir = args.soldir
 
     rm, xpos, target, res, w_c, y1, y2 =  mode_setup_information(ccd.header)
-    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target)
+    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target, twod=args.twod)
     outfile = sys.argv[1].replace('.fits', '_spec.fits')
 
     write_spdict(outfile, sp_dict, header=ccd.header)
