@@ -52,9 +52,11 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
     """
     hrs = HRSOrder(n_order)
     hrs.set_order_from_array(order_frame.data)
-    hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit)
+    hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit, error=ccd.uncertainty.array, mask=ccd.mask)
     hrs.set_target(target)
+    hrs.error[hrs.mask] = 1000*hrs.error.mean() # set pixels with bad fluxes to high numbers
     data, coef = hrs.create_box(hrs.flux, interp=interp)
+    error, coef = hrs.create_box(hrs.error, interp=interp)
 
     xarr = np.arange(len(data[0]))
     if order is None:
@@ -67,11 +69,16 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
         if i < len(data) and i >= y1 and i <= y2:
             m = shift_dict[i]
 	    shift_flux = np.interp(xarr, m(xarr), data[i])
+	    shift_error = np.interp(xarr, m(xarr), error[i])
+            # just in case flux is zero
+            s = 1.0 * shift_flux
+            s[s==0] = 0.0001
+            w = (shift_error/s)**2
             data[i] = shift_flux
-            flux += shift_flux # * np.median(shift_flux)
-            weight += 1 #np.median(shift_flux)
-    pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
-    return warr, flux #/weight
+            flux += shift_flux / w**2 
+            weight += 1 / w**2  
+    #pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
+    return warr, flux / weight
 
 
 def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
