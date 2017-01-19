@@ -121,7 +121,7 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
 
     # create the error frame
     if error and gain is not None and rdnoise is not None:
-        nccd = ccdproc.create_deviation(nccd, gain=gain, rdnoise=rdnoise)
+        nccd = ccdproc.create_deviation(nccd, gain=gain, readnoise=rdnoise)
     elif error and (gain is None or rdnoise is None):
         raise ValueError(
             'gain and rdnoise must be specified to create error frame')
@@ -342,7 +342,7 @@ def blue_process(infile, masterbias=None, error=False, rdnoise=None, oscan_corre
     flip = True
     ccd = hrs_process(infile, ampsec=blueamp, oscansec=bluescan,
                       trimsec=bluetrim, masterbias=masterbias, error=error,
-                      rdnoise=None, flip=flip)
+                      rdnoise=rdnoise, flip=flip)
     #this is in place to deal with changes from one amp to two
     if namps == 1:
         ccd.data = ccd.data[:, ::-1]
