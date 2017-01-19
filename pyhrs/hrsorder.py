@@ -219,6 +219,12 @@ class HRSOrder(object):
         flux_unit: `~astropy.units.UnitBase` instance or str, optional
             The units of the flux.
 
+        error: `~numpy.ndarray`
+            error is an 2D array with a flux error specified at each pixel.
+
+        mask: `~numpy.ndarray`
+            mask is an 2D array with a mask value specified at each pixel.
+
         """
 
         if not isinstance(data, np.ndarray):
@@ -392,6 +398,10 @@ class HRSOrder(object):
             self.wavelength = self.wavelength[mask]
         if self.flux is not None:
             self.flux = self.flux[mask]
+        if self.error is not None:
+            self.error = self.error[mask]
+        if self.mask is not None:
+            self.mask = self.mask[mask]
 
         return
 
