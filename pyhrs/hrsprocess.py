@@ -497,7 +497,7 @@ def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, int
         flat_hrs.set_order_from_array(order_frame.data)
         flat_hrs.set_flux_from_array(flat_frame.data, flux_unit=flat_frame.unit)
 
-        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=median_filter_size)
+        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=median_filter_size, interp=interp)
 
         ndata[hrs.region[0], hrs.region[1]] = hrs.flux
 
