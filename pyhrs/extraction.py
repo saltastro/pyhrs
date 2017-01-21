@@ -174,7 +174,7 @@ def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2),
        Fitter used to fit the model
 
     """
-    n_orders = np.array(spectra_dict.keys())
+    n_orders = np.array(spectra_dict.keys(), dtype=int)
     o = n_orders.min()+1
     w,f = spectra_dict[o]
     xarr = np.arange(len(w))
