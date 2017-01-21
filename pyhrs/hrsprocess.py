@@ -252,7 +252,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
         raise ValueError('Number of trimsec does not equal number of amps')
 
     if namps == 1:
-        if ccd.header['OBSTYPE']=='BIAS':
+        if ccd.header['OBSTYPE']=='Bias':
             gain = None
         else:
             gain = float(ccd.header['gain'].split()[0]) * u.electron / u.adu
@@ -371,7 +371,7 @@ def red_process(infile, masterbias=None, error=None, rdnoise=None, oscan_correct
     redtrim = ['[27:4122,1:4112]']
     ccd = hrs_process(infile, ampsec=redamp, oscansec=redscan,
                       trimsec=redtrim, masterbias=masterbias, error=error,
-                      rdnoise=None, flip=False)
+                      rdnoise=rdnoise, flip=False)
     return ccd
 
 
