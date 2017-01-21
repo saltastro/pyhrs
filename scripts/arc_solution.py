@@ -39,7 +39,7 @@ def get_spectra(arc, order_frame, n_order, soldir, target=True, flux_limit=100):
 
     data, coef = hrs.create_box(hrs.flux, interp=True)
 
-    pickle.dump(data, open('box_%s.pkl' % n_order, 'w'))
+    #pickle.dump(data, open('box_%s.pkl' % n_order, 'w'))
     xarr = np.arange(len(data[0]))
     warr = ws(xarr)
     flux = np.zeros_like(xarr)
@@ -52,7 +52,7 @@ def get_spectra(arc, order_frame, n_order, soldir, target=True, flux_limit=100):
                                            niter=3, sigma=3.0)
     _t, p = or_fitter(i_p, xarr, flux)
 
-    flux = flux-p(xarr)
+    #flux = flux-p(xarr)
     flux[flux<flux_limit] = flux_limit
     
     return xarr, warr, flux, ws, shift_dict
@@ -66,11 +66,15 @@ if __name__=='__main__':
 
     camera_name = arc.header['DETNAM'].lower()
     arm, xpos, target, res, w_c, y1, y2 = mode_setup_information(arc.header)
+    if target=='upper':
+       target=True
+    else:
+       target=False
 
     n_min = order_frame.data[order_frame.data>0].min()
     for n_order in np.arange(n_min, order_frame.data.max()):
-        print n_order
         if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): continue
+ 
         x, w, f, ws, sh = get_spectra(arc, order_frame, int(n_order), soldir)
         m_arr = ws_match_lines(x, f, ws, dw=1.0, kernal_size=3)
         m, prob = match_probability(m_arr[:,1], m_arr[:,2], 
