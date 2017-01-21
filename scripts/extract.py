@@ -19,6 +19,7 @@ import pylab as pl
 from pyhrs import mode_setup_information
 from pyhrs import zeropoint_shift
 from pyhrs import HRSOrder, HRSModel
+from pyhrs import extract_order
 
 def write_spdict(outfile, sp_dict, header=None):
     
@@ -45,62 +46,6 @@ def write_spdict(outfile, sp_dict, header=None):
     prihdu = fits.PrimaryHDU(header=header)
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(outfile, clobber=True)
-
-def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=None, target=True, interp=False):
-    """Given a wavelength solution and offset, extract the order
-
-    """
-    hrs = HRSOrder(n_order)
-    hrs.set_order_from_array(order_frame.data)
-    if ccd.uncertainty is None:
-        error = None
-    else:
-       error = ccd.uncertainty.array
-    hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit, error=error, mask=ccd.mask)
-
-    # set pixels with bad fluxes to high numbers
-    if hrs.mask is not None and hrs.error is not None:
-        hrs.flux[hrs.mask] = 0
-        hrs.error[hrs.mask] = 1000*hrs.error.mean()
-
-    # set the aperture to extract
-    hrs.set_target(target)
-
-    # create the boxes of fluxes
-    data, coef = hrs.create_box(hrs.flux, interp=interp)
-    if hrs.error is not None:
-        error, coef = hrs.create_box(hrs.error, interp=interp)
-    else:
-        error = None
-
-    # create teh wavelength array and either use the
-    # 1d or the 2d solution
-    xarr = np.arange(len(data[0]))
-    if order is None:
-       warr = ws(xarr)
-    else:
-       warr = ws(xarr, order*np.ones_like(xarr))
-    flux = np.zeros_like(xarr, dtype=float)
-    weight = 0
-    for i in shift_dict.keys():
-        if i < len(data) and i >= y1 and i <= y2:
-            m = shift_dict[i]
-	    shift_flux = np.interp(xarr, m(xarr), data[i])
-            if error is not None:
-                shift_error = np.interp(xarr, m(xarr), error[i])
-                # just in case flux is zero
-                s = 1.0 * shift_flux
-                s[s==0] = 0.0001
-                w = (shift_error/s)**2
-            else:
-                shift_error = 1
-                w = 1
-
-            data[i] = shift_flux
-            flux += shift_flux / w**2
-            weight += 1.0 / w**2
-    #pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
-    return warr, flux / weight
 
 
 def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):

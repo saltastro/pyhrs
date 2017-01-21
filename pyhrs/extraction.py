@@ -17,7 +17,102 @@ from scipy import ndimage as nd
 from .hrstools import *
 from .hrsorder import HRSOrder
 
-__all__=['simple_extract_order', 'extract_science', 'normalize_order', 'normalize_spectra', 'stitch_spectra']
+__all__=['extract_order', 'simple_extract_order', 'extract_science', 'normalize_order', 'normalize_spectra', 'stitch_spectra']
+
+
+def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=None, target=True, interp=False):
+    """Given a wavelength solution and offset, extract the order
+
+    Parameters
+    ----------
+    ccd: ~ccdproc.CCDData
+        Science frame to be flatfielded
+
+    order_frame: ~ccdproc.CCDData
+        Frame containting the positions of each of the orders
+
+    n_order: int
+        Order to be extracted 
+
+    ws: WavelengthSolution
+        WavelengthSolution object containing the solution for this arc
+
+    shift_dict: dict
+        Dictionary containing the per row corrections to the spectra
+
+    y1: int
+        Minimum row to extract spectra
+
+    y2: int
+        Maximum row to extract spectra
+ 
+    target_fiber: boolean
+        Set to True to extract the target fiber
+
+    interp: boolean
+        Interpolate flux while rectifying order
+
+    Returns
+    -------
+    spectra_dict: list
+        Dictionary of spectra for each order
+
+    """
+    hrs = HRSOrder(n_order)
+    hrs.set_order_from_array(order_frame.data)
+    if ccd.uncertainty is None:
+        error = None
+    else:
+       error = ccd.uncertainty.array
+    hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit, error=error, mask=ccd.mask)
+
+    # set pixels with bad fluxes to high numbers
+    if hrs.mask is not None and hrs.error is not None:
+        hrs.flux[hrs.mask] = 0
+        hrs.error[hrs.mask] = 1000*hrs.error.mean()
+
+    # set the aperture to extract
+    hrs.set_target(target)
+
+    # create the boxes of fluxes
+    data, coef = hrs.create_box(hrs.flux, interp=interp)
+    if hrs.error is not None:
+        error, coef = hrs.create_box(hrs.error, interp=interp)
+    else:
+        error = None
+
+    # create teh wavelength array and either use the
+    # 1d or the 2d solution
+    xarr = np.arange(len(data[0]))
+    if order is None:
+       warr = ws(xarr)
+    else:
+       warr = ws(xarr, order*np.ones_like(xarr))
+    flux = np.zeros_like(xarr, dtype=float)
+    weight = 0
+    for i in shift_dict.keys():
+        if i < len(data) and i >= y1 and i <= y2:
+            m = shift_dict[i]
+            shift_flux = np.interp(xarr, m(xarr), data[i])
+            if error is not None:
+                shift_error = np.interp(xarr, m(xarr), error[i])
+                # just in case flux is zero
+                s = 1.0 * shift_flux
+                s[s==0] = 0.0001
+                w = (shift_error/s)**2
+            else:
+                shift_error = 1
+                w = 1
+
+            data[i] = shift_flux
+            flux += shift_flux / w**2
+            weight += 1.0 / w**2
+    #pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
+    return warr, flux / weight
+
+
+
+
 
 def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None, interp=False):
     """Simple_extract_order transforms the observed spectra into a square form, 
