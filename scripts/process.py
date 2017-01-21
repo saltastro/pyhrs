@@ -12,7 +12,7 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description='Process SALT HRS observations')
     parser.add_argument('infile', help='SALT HRS image')
-    parser.add_argument('--b', dest='mccd', help='Master bias file')
+    parser.add_argument('--b', dest='mbias', help='Master bias file')
     parser.add_argument('--o', dest='order', help='Master order file')
     parser.add_argument('--f', dest='flat', help='Master flat file')
     parser.add_argument('--m', dest='mfs', help='Median filter size', default=None)
@@ -23,7 +23,7 @@ if __name__=='__main__':
 
     infile = args.infile
     if args.mccd:
-        mccd = CCDData.read(args.mccd, unit='electron')
+        mccd = CCDData.read(args.mbias, unit='electron')
     else:
         mccd = None
 
