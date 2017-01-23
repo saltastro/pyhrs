@@ -22,7 +22,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     infile = args.infile
-    if args.mccd:
+    if args.mbias:
         mccd = CCDData.read(args.mbias, unit='electron')
     else:
         mccd = None
