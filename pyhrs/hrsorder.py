@@ -37,6 +37,11 @@ class HRSOrder(object):
     wavelength_unit: `~astropy.units.UnitBase` instance or str, optional
         The units of the wavelength
 
+    error: `~numpy.ndarray`
+        Error corresponding to each pixel coordinate in region.
+
+    mask: `~numpy.ndarray`
+        Mask corresponding to each pixel coordinate in region.
 
     """
 

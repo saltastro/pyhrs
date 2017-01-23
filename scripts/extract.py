@@ -19,34 +19,7 @@ import pylab as pl
 from pyhrs import mode_setup_information
 from pyhrs import zeropoint_shift
 from pyhrs import HRSOrder, HRSModel
-from pyhrs import extract_order
-
-def write_spdict(outfile, sp_dict, header=None):
-    
-    o_arr = None
-    w_arr = None
-    f_arr = None
-
-    for k in sp_dict.keys():
-        w,f = sp_dict[k]
-        if w_arr is None:
-            w_arr = 1.0*w
-            f_arr = 1.0*f
-            o_arr = k*np.ones_like(w, dtype=int)
-        else:
-            w_arr = np.concatenate((w_arr, w))
-            f_arr = np.concatenate((f_arr, f))
-            o_arr = np.concatenate((o_arr, k*np.ones_like(w, dtype=int)))
-
-    c1 = fits.Column(name='Wavelength', format='D', array=w_arr, unit='Angstroms')
-    c2 = fits.Column(name='Flux', format='D', array=f_arr, unit='Counts')
-    c3 = fits.Column(name='Order', format='I', array=o_arr)
-
-    tbhdu = fits.BinTableHDU.from_columns([c1,c2,c3])
-    prihdu = fits.PrimaryHDU(header=header)
-    thdulist = fits.HDUList([prihdu, tbhdu])
-    thdulist.writeto(outfile, clobber=True)
-
+from pyhrs import extract_order, write_spdict
 
 def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
     """Extract all of the orders and create a spectra table
@@ -70,20 +43,20 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
         if sdir is True and twod is False:
             if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): continue 
             shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
-            w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f, e = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
 
         if sdir is False and twod is False:
             sol_dict = pickle.load(open(soldir, 'rb'))
             if n_order not in sol_dict.keys(): continue
             ws, shift_dict = sol_dict[n_order]
-            w, f = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f, e = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
 
         if sdir is False and twod is True:
             shift_all, ws = pickle.load(open(soldir))
             if n_order not in shift_all.keys(): continue
-            w, f = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
+            w, f, e = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
 
-	sp_dict[n_order] = [w,f]
+	sp_dict[n_order] = [w,f, e]
     return sp_dict
 
 
