@@ -89,6 +89,7 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
     else:
        warr = ws(xarr, order*np.ones_like(xarr))
     flux = np.zeros_like(xarr, dtype=float)
+    err =  np.zeros_like(xarr, dtype=float)
     weight = 0
     for i in shift_dict.keys():
         if i < len(data) and i >= y1 and i <= y2:
@@ -106,9 +107,10 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
 
             data[i] = shift_flux
             flux += shift_flux / w**2
+            err += shift_error**2 / w**2
             weight += 1.0 / w**2
     #pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
-    return warr, flux / weight
+    return warr, flux / weight, (err / weight)**0.5
 
 
 
