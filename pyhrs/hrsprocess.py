@@ -460,6 +460,9 @@ def flatfield_science_order(hrs, flat_hrs, median_filter_size=None, interp=False
 
     #divide and normalize by the flux
     hrs.flux = hrs.flux * np.median(flat_hrs.flux) / flat_hrs.flux
+    
+    if hrs.error is not None:
+       hrs.error = hrs.error * np.median(flat_hrs.flux) / flat_hrs.flux
 
     return hrs
 
@@ -493,10 +496,15 @@ def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, int
     order_arr = np.arange(o1, o2, dtype=int)
 
     ndata = 0.0 * ccd.data
+    if ccd.uncertainty is not None:
+        edata = ccd.uncertainty.array
+    else:
+        edata is None
+
     for n_order in order_arr:
         hrs = HRSOrder(n_order)
         hrs.set_order_from_array(order_frame.data)
-        hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit)
+        hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit, error=edata)
 
         flat_hrs = HRSOrder(n_order)
         flat_hrs.set_order_from_array(order_frame.data)
@@ -505,6 +513,7 @@ def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, int
         hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=median_filter_size, interp=interp)
 
         ndata[hrs.region[0], hrs.region[1]] = hrs.flux
+        if edata is not None: edata[hrs.region[0], hrs.region[1]] = hrs.error
 
     ccd.data = ndata
     return ccd
