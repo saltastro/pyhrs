@@ -499,7 +499,7 @@ def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, int
     if ccd.uncertainty is not None:
         edata = ccd.uncertainty.array
     else:
-        edata is None
+        edata = None
 
     for n_order in order_arr:
         hrs = HRSOrder(n_order)
