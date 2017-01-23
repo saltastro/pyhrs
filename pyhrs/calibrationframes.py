@@ -458,7 +458,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     ys = y.max()
     data = np.zeros((ys+1,xs+1))
     data[y,x] = hrs.flux
-    pickle.dump(data, open('box_%i.pkl' % hrs.order, 'w'))
+    #pickle.dump(data, open('box_%i.pkl' % hrs.order, 'w'))
 
     #set the wavelength
     func_order = len(ws_init.parameters)
