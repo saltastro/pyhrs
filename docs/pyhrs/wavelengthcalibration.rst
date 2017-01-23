@@ -29,40 +29,33 @@ Calibrating a single order
 
 To calibrate a single order, the following steps are carried out:
 
-1. Curvature due to the optical distortion is removed from the spectra and
-   a square representation of the 2D spectra is created.  Only integer 
-   shifts are applied to the data
-2. A model of the spectrograph is created based on the order, camera, and
-   xpos offset that are supplied.  A small correction described by a quadratic
-   equation is added to the transformation calculated from the model.
+1. A single order is extracted. Curvature due to the optical distortion is 
+   removed from the spectra and
+   a square representation of the 2D spectra is created.  For best results,
+   the data is interpolated to create the 2D representation.
+2. Either the sky or the object fiber is extracted.   The extraction is
+   carried out by co-adding the rows in the box corresponding to the 
+   appropriate fiber. 
 3. In each row of the data, peaks are extracted and matched with a
    line in the atlas of wavelengths that is provided.  Due to the accuracy
    of the initial guess, lines are matched to within an angstrom and any
-   line that might be blended is rejected. 
-4. Once the first set of peaks and lines are matched up, a new solution
-   is calculated for the given row.   Then the processes of matching
-   lines and determining a wavelength solution is repeated using this new
-   solution.  The best result from each line is saved.
-5. Using all of the matched lines from all lines, a 'best' solution is 
-   determined.   Everything but the zeroth order parameter of the fit
-   is fixed to a slowly varying value based on the overall solution to all
-   lines.  See `~pyhrs.fit_solution` for more details.
-6. Based on the best solution found, the process is repeated for each
-   row but only determing the zeropoint. 
-7. Based on the solution found, a wavelength is assigned to each pixel
-
-All of these steps are carried out by `~pyhrs.wavelength_calibrate_order`.  In
-the end, this task returns an `~pyhrs.HRSOrder` object with wavelengths correspond
-to every pixel where a good solution was found.   In addition, it also returns
-the x-position, wavelength, and solution for the initial row.  
+   line that might be blended is rejected.
+4. A model of the spectrograph is created based on the order, camera, and
+   xpos offset that are supplied.  A small correction described by a quadratic
+   equation is added to the transformation calculated from the model.  If available,
+   a previous fit to the order is used instead of the model. 
+5. In each row of the data, peaks are extracted and matched with a
+   line in the atlas of wavelengths that is provided. This is either done
+   manually or automatically using the [specreduce](https://github.com/crawfordsm/specreduce) 
+   package.
+6. Once lines have been identified in each of the orders, a 2D solution
+   can be calcuated using all of the order and line information.
 
 
 Calibrating an arc
 ------------------
 
-For full automated calibration of an arc, `~pyhrs.wavelength_calibrate_arc` can be
-used.   In this task, it applies `~pyhrs.wavelength_calibrate_order` to each 
-of the orders in the frame.  It uses `pyhrs.HRSModel` for the first guess but takes
-the quadratic correction from the solution of the nearest order.  It starts
-with the initial order and the first row is also set by the user.  
-
+For manual identification, the script `identify.py` can be used to identify
+the lines in each arc.  If you want to repeat this, you can then use `re-identify.py`.
+The script, `arc_solution.py` will produce automatic line identificaiton using
+an already existing solution. 
