@@ -273,14 +273,17 @@ def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2),
     """
     n_orders = np.array(spectra_dict.keys(), dtype=int)
     o = n_orders.min()+1
-    w,f = spectra_dict[o]
+    w,f,e = spectra_dict[o]
     xarr = np.arange(len(w))
     farr = np.zeros(len(w))
     for o in range(n_orders.min()+1, n_orders.max()+1):
-        farr += spectra_dict[o][1]
+        f = spectra_dict[o][1]
+        f[np.isnan(f)] = 0
+        farr += f
     f = fitter(model, xarr, farr)
     for o in range(n_orders.min()+1, n_orders.max()+1):
         spectra_dict[o][1] = spectra_dict[o][1] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
+        spectra_dict[o][2] = spectra_dict[o][2] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
     return spectra_dict
 
 def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitter=None):
@@ -297,7 +300,7 @@ def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitt
     """
     warr = None
     for o in range(n_min, n_max):
-          w,f = spectra_dict[o]
+          w,f,e = spectra_dict[o]
           if np.all(np.isnan(f)): continue
           f[np.isnan(f)] = 0
           if normalize:
@@ -305,9 +308,11 @@ def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitt
           if warr is None:
              warr = 1.0 * w
              farr = 1.0 * f
+             earr = 1.0 * e
           else:
              warr = np.concatenate([warr, w])
              farr = np.concatenate([farr, f])
+             earr = np.concatenate([farr, e])
 
     i = warr.argsort()
-    return warr[i], farr[i]
+    return warr[i], farr[i], earr[i]
