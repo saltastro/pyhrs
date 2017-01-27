@@ -91,6 +91,7 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
     flux = np.zeros_like(xarr, dtype=float)
     err =  np.zeros_like(xarr, dtype=float)
     weight = 0
+    fsum = np.zeros_like(xarr, dtype=float)
     for i in shift_dict.keys():
         if i < len(data) and i >= y1 and i <= y2:
             m = shift_dict[i]
@@ -107,10 +108,11 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
 
             data[i] = shift_flux
             flux += shift_flux / w**2
+            fsum += shift_flux
             err += shift_error**2 / w**2
             weight += 1.0 / w**2
     #pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
-    return warr, flux / weight, (err / weight)**0.5
+    return warr, flux / weight, (err / weight)**0.5, fsum
 
 
 
@@ -273,7 +275,7 @@ def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2),
     """
     n_orders = np.array(spectra_dict.keys(), dtype=int)
     o = n_orders.min()+1
-    w,f,e = spectra_dict[o]
+    w,f,e,s = spectra_dict[o]
     xarr = np.arange(len(w))
     farr = np.zeros(len(w))
     for o in range(n_orders.min()+1, n_orders.max()+1):
@@ -284,6 +286,16 @@ def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2),
     for o in range(n_orders.min()+1, n_orders.max()+1):
         spectra_dict[o][1] = spectra_dict[o][1] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
         spectra_dict[o][2] = spectra_dict[o][2] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
+    #now do the summed spectra
+    farr = np.zeros(len(w))
+    for o in range(n_orders.min()+1, n_orders.max()+1):
+        f = spectra_dict[o][3]
+        f[np.isnan(f)] = 0
+        farr += f
+    f = fitter(model, xarr, farr)
+    for o in range(n_orders.min()+1, n_orders.max()+1):
+        spectra_dict[o][3] = spectra_dict[o][3] / f(xarr)  * f(xarr).mean()/spectra_dict[o][3].mean()
+
     return spectra_dict
 
 def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitter=None):
@@ -300,7 +312,7 @@ def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitt
     """
     warr = None
     for o in range(n_min, n_max):
-          w,f,e = spectra_dict[o]
+          w,f,e,s = spectra_dict[o]
           if np.all(np.isnan(f)): continue
           f[np.isnan(f)] = 0
           if normalize:
@@ -309,10 +321,12 @@ def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitt
              warr = 1.0 * w
              farr = 1.0 * f
              earr = 1.0 * e
+             sarr = 1.0 * s
           else:
              warr = np.concatenate([warr, w])
              farr = np.concatenate([farr, f])
              earr = np.concatenate([farr, e])
+             sarr = np.concatenate([farr, s])
 
     i = warr.argsort()
-    return warr[i], farr[i], earr[i]
+    return warr[i], farr[i], earr[i], sarr[i]

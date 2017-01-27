@@ -877,26 +877,30 @@ def write_spdict(outfile, sp_dict, header=None):
     w_arr = None
     f_arr = None
     e_arr = None
+    s_arr = None
 
     for k in sp_dict.keys():
-        w,f, e = sp_dict[k]
+        w, f, e, s = sp_dict[k]
         if w_arr is None:
             w_arr = 1.0*w
             f_arr = 1.0*f
             e_arr = 1.0*e
+            s_arr = 1.0*s
             o_arr = k*np.ones_like(w, dtype=int)
         else:
             w_arr = np.concatenate((w_arr, w))
             f_arr = np.concatenate((f_arr, f))
             e_arr = np.concatenate((e_arr, e))
+            s_arr = np.concatenate((e_arr, s))
             o_arr = np.concatenate((o_arr, k*np.ones_like(w, dtype=int)))
 
     c1 = fits.Column(name='Wavelength', format='D', array=w_arr, unit='Angstroms')
     c2 = fits.Column(name='Flux', format='D', array=f_arr, unit='Counts')
     c3 = fits.Column(name='Order', format='I', array=o_arr)
     c4 = fits.Column(name='Error', format='D', array=e_arr, unit='Counts')
+    c5 = fits.Column(name='Sum', format='D', array=s_arr, unit='Counts')
 
-    tbhdu = fits.BinTableHDU.from_columns([c1,c2,c3,c4])
+    tbhdu = fits.BinTableHDU.from_columns([c1, c2, c3, c4, c5])
     prihdu = fits.PrimaryHDU(header=header)
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(outfile, clobber=True)

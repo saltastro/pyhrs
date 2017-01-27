@@ -43,20 +43,20 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
         if sdir is True and twod is False:
             if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): continue 
             shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
-            w, f, e = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
 
         if sdir is False and twod is False:
             sol_dict = pickle.load(open(soldir, 'rb'))
             if n_order not in sol_dict.keys(): continue
             ws, shift_dict = sol_dict[n_order]
-            w, f, e = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
 
         if sdir is False and twod is True:
             shift_all, ws = pickle.load(open(soldir))
             if n_order not in shift_all.keys(): continue
-            w, f, e = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
+            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
 
-	sp_dict[n_order] = [w,f, e]
+	sp_dict[n_order] = [w,f, e, s]
     return sp_dict
 
 
