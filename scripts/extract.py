@@ -21,7 +21,7 @@ from pyhrs import zeropoint_shift
 from pyhrs import HRSOrder, HRSModel
 from pyhrs import extract_order, write_spdict
 
-def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
+def extract(ccd, order_frame, soldir, target='upper', y1=3, y2=10, interp=False, twod=False):
     """Extract all of the orders and create a spectra table
 
     """
@@ -43,18 +43,18 @@ def extract(ccd, order_frame, soldir, target='upper', interp=False, twod=False):
         if sdir is True and twod is False:
             if not os.path.isfile(soldir+'sol_%i.pkl' % n_order): continue 
             shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
-            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=y1, y2=y2, target=target, interp=interp)
 
         if sdir is False and twod is False:
             sol_dict = pickle.load(open(soldir, 'rb'))
             if n_order not in sol_dict.keys(): continue
             ws, shift_dict = sol_dict[n_order]
-            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict, target=target, interp=interp)
+            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict,y1=y1, y2=y2,  target=target, interp=interp)
 
         if sdir is False and twod is True:
             shift_all, ws = pickle.load(open(soldir))
             if n_order not in shift_all.keys(): continue
-            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order, target=target, interp=interp)
+            w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_all[n_order], order=n_order,y1=y1, y2=y2,  target=target, interp=interp)
 
 	sp_dict[n_order] = [w,f, e, s]
     return sp_dict
@@ -74,7 +74,7 @@ if __name__=='__main__':
     soldir = args.soldir
 
     rm, xpos, target, res, w_c, y1, y2 =  mode_setup_information(ccd.header)
-    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target, twod=args.twod)
+    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target, y1=y1, y2=y2, twod=args.twod)
     outfile = sys.argv[1].replace('.fits', '_spec.fits')
 
     write_spdict(outfile, sp_dict, header=ccd.header)
