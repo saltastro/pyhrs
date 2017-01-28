@@ -891,7 +891,7 @@ def write_spdict(outfile, sp_dict, header=None):
             w_arr = np.concatenate((w_arr, w))
             f_arr = np.concatenate((f_arr, f))
             e_arr = np.concatenate((e_arr, e))
-            s_arr = np.concatenate((e_arr, s))
+            s_arr = np.concatenate((s_arr, s))
             o_arr = np.concatenate((o_arr, k*np.ones_like(w, dtype=int)))
 
     c1 = fits.Column(name='Wavelength', format='D', array=w_arr, unit='Angstroms')
