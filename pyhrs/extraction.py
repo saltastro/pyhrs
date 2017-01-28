@@ -101,18 +101,17 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
                 # just in case flux is zero
                 s = 1.0 * shift_flux
                 s[s==0] = 0.0001
-                w = (shift_error/s)**2
+                w = 1.0 / shift_error**2
             else:
                 shift_error = 1
                 w = 1
 
             data[i] = shift_flux
-            flux += shift_flux / w**2
+            flux += shift_flux * w
             fsum += shift_flux
-            err += shift_error**2 / w**2
-            weight += 1.0 / w**2
+            weight += w 
     #pickle.dump(data, open('box_%i.pkl' % n_order, 'w'))
-    return warr, flux / weight, (err / weight)**0.5, fsum
+    return warr, flux / weight, 1.0 / weight**0.5, fsum
 
 
 
