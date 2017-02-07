@@ -104,7 +104,7 @@ def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=
                 w = 1.0 / shift_error**2
             else:
                 shift_error = 1
-                w = 1
+                w = np.ones_like(xarr, dtype=float)
 
             data[i] = shift_flux
             flux += shift_flux * w
