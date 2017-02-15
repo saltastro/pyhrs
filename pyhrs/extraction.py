@@ -283,8 +283,8 @@ def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2),
         farr += f
     f = fitter(model, xarr, farr)
     for o in range(n_orders.min()+1, n_orders.max()+1):
-        spectra_dict[o][1] = spectra_dict[o][1] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
         spectra_dict[o][2] = spectra_dict[o][2] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
+        spectra_dict[o][1] = spectra_dict[o][1] / f(xarr)  * f(xarr).mean()/spectra_dict[o][1].mean()
     #now do the summed spectra
     farr = np.zeros(len(w))
     for o in range(n_orders.min()+1, n_orders.max()+1):
