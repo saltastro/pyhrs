@@ -1,6 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # This module implements the handling of different calibration files
-from __future__ import (absolute_import, division,# print_function,
+from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
@@ -316,7 +316,6 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order,
 
     top_fiber=False
     if fiber=='upper': top_fiber=True
-    print now()
     order_dict = {}
     for i in abs(order_arr-first_order).argsort():
 
@@ -342,11 +341,9 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order,
             w_s = shift_dict[shift_dict.keys()[j]](xarr)
             nwarr = warr + w_s
             ws = fit_ws(ws_init, xarr, nwarr)
-            print n_order, nwarr.min(), nwarr.max(), w1_limit, w2_limit
             #check to see if the result is within the boundaries
             #and if not use the first order
             if nwarr.min() < w1_limit and nwarr.max() > w2_limit:
-                print 'Using first order', n_order, nwarr.min(), nwarr.max()
                 nwarr = warr +  shift_dict[first_order](xarr)
                 ws = fit_ws(ws_init, xarr, nwarr)
         else: 
@@ -374,7 +371,6 @@ def wavelength_calibrate_arc(arc, order_frame, slines, sfluxes, first_order,
         
         wdata[hrs.region] = hrs.wavelength
         edata[hrs.region] = hrs.wavelength_error
-        print '  ', now()
 
     return wdata, edata, order_dict
 
@@ -462,7 +458,7 @@ def wavelength_calibrate_order(hrs, slines, sfluxes, ws_init, fit_ws, y0=50, npo
     ys = y.max()
     data = np.zeros((ys+1,xs+1))
     data[y,x] = hrs.flux
-    pickle.dump(data, open('box_%i.pkl' % hrs.order, 'w'))
+    #pickle.dump(data, open('box_%i.pkl' % hrs.order, 'w'))
 
     #set the wavelength
     func_order = len(ws_init.parameters)

@@ -10,13 +10,14 @@ from scipy import ndimage as nd
 from astropy import stats
 from astropy import modeling as mod
 from astropy import units as u
+from astropy.io import fits
 
 
 import specutils
 
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
            'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift', 
-           'clean_flatimage', 'mode_setup_information',
+           'clean_flatimage', 'mode_setup_information', 'write_spdict',
            'fit_wavelength_solution', 'create_linelists', 'collapse_array']
 
 def background(b_arr, niter=3):
@@ -854,3 +855,53 @@ def mode_setup_information(header):
             y2 = 9
 
     return arm, xpos, target, res, w_c, y1, y2
+
+
+def write_spdict(outfile, sp_dict, header=None):
+    """Write out a spectral dictionary
+
+    Parameters
+    ----------
+    outfile: str
+       Name of outfile
+
+    sp_dict: dict
+       Dictionary containing wavelength, flux, and error as a function of order
+
+    header: None or ~astropy.io.fits.header
+       Optional header for outfile
+
+    """
+
+    o_arr = None
+    w_arr = None
+    f_arr = None
+    e_arr = None
+    s_arr = None
+
+    for k in sp_dict.keys():
+        w, f, e, s = sp_dict[k]
+        if w_arr is None:
+            w_arr = 1.0*w
+            f_arr = 1.0*f
+            e_arr = 1.0*e
+            s_arr = 1.0*s
+            o_arr = k*np.ones_like(w, dtype=int)
+        else:
+            w_arr = np.concatenate((w_arr, w))
+            f_arr = np.concatenate((f_arr, f))
+            e_arr = np.concatenate((e_arr, e))
+            s_arr = np.concatenate((s_arr, s))
+            o_arr = np.concatenate((o_arr, k*np.ones_like(w, dtype=int)))
+
+    c1 = fits.Column(name='Wavelength', format='D', array=w_arr, unit='Angstroms')
+    c2 = fits.Column(name='Flux', format='D', array=f_arr, unit='Counts')
+    c3 = fits.Column(name='Order', format='I', array=o_arr)
+    c4 = fits.Column(name='Error', format='D', array=e_arr, unit='Counts')
+    c5 = fits.Column(name='Sum', format='D', array=s_arr, unit='Counts')
+
+    tbhdu = fits.BinTableHDU.from_columns([c1, c2, c3, c4, c5])
+    prihdu = fits.PrimaryHDU(header=header)
+    thdulist = fits.HDUList([prihdu, tbhdu])
+    thdulist.writeto(outfile, clobber=True)
+

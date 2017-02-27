@@ -22,7 +22,12 @@ from astropy_helpers.version_helpers import generate_version_py
 
 # Get some values from the setup.cfg
 from distutils import config
-conf = config.ConfigParser()
+try:
+    from ConfigParser import ConfigParser
+except ImportError:
+    from configparser import ConfigParser
+
+conf = ConfigParser()
 conf.read(['setup.cfg'])
 metadata = dict(conf.items('metadata'))
 
@@ -95,7 +100,7 @@ setup(name=PACKAGENAME,
       description=DESCRIPTION,
       scripts=scripts,
       requires=['astropy', 'ccdproc', 'PySpectrograph'],
-      install_requires=['astropy>=1.0', 'ccdproc>=0.3', 'PySpectrograph>=0.3'],
+      install_requires=['numpy', 'scipy', 'astropy>=1.0', 'ccdproc>=0.3', 'PySpectrograph>=0.3', 'specutils'],
       provides=[PACKAGENAME],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,

@@ -119,9 +119,20 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
     else:
         raise TypeError('trim is not None or a string')
 
+    # test subtracting the master bias
+    if isinstance(masterbias, ccdproc.CCDData):
+        nccd = ccdproc.subtract_bias(nccd, masterbias)
+    elif isinstance(masterbias, np.ndarray):
+        nccd.data = nccd.data - masterbias
+    elif masterbias is None:
+        pass
+    else:
+        raise TypeError(
+            'masterbias is not None, numpy.ndarray,  or a CCDData object')
+
     # create the error frame
     if error and gain is not None and rdnoise is not None:
-        nccd = ccdproc.create_deviation(nccd, gain=gain, rdnoise=rdnoise)
+        nccd = ccdproc.create_deviation(nccd, gain=gain, readnoise=rdnoise)
     elif error and (gain is None or rdnoise is None):
         raise ValueError(
             'gain and rdnoise must be specified to create error frame')
@@ -142,16 +153,6 @@ def ccd_process(ccd, oscan=None, trim=None, error=False, masterbias=None,
     else:
         raise TypeError('gain is not None or astropy.Quantity')
 
-    # test subtracting the master bias
-    if isinstance(masterbias, ccdproc.CCDData):
-        nccd = ccdproc.subtract_bias(nccd, masterbias)
-    elif isinstance(masterbias, np.ndarray):
-        nccd.data = nccd.data - masterbias
-    elif masterbias is None:
-        pass
-    else:
-        raise TypeError(
-            'masterbias is not None, numpy.ndarray,  or a CCDData object')
 
 
 
@@ -251,7 +252,11 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
         raise ValueError('Number of trimsec does not equal number of amps')
 
     if namps == 1:
-        gain = float(ccd.header['gain'].split()[0]) * u.electron / u.adu
+        if ccd.header['OBSTYPE']=='Bias':
+            gain = None
+        else:
+            gain = float(ccd.header['gain'].split()[0]) * u.electron / u.adu
+
         nccd = ccd_process(ccd, oscan=oscansec[0], trim=trimsec[0],
                            error=error, masterbias=masterbias,
                            bad_pixel_mask=bad_pixel_mask, gain=gain,
@@ -342,7 +347,7 @@ def blue_process(infile, masterbias=None, error=False, rdnoise=None, oscan_corre
     flip = True
     ccd = hrs_process(infile, ampsec=blueamp, oscansec=bluescan,
                       trimsec=bluetrim, masterbias=masterbias, error=error,
-                      rdnoise=None, flip=flip)
+                      rdnoise=rdnoise, flip=flip)
     #this is in place to deal with changes from one amp to two
     if namps == 1:
         ccd.data = ccd.data[:, ::-1]
@@ -366,7 +371,7 @@ def red_process(infile, masterbias=None, error=None, rdnoise=None, oscan_correct
     redtrim = ['[27:4122,1:4112]']
     ccd = hrs_process(infile, ampsec=redamp, oscansec=redscan,
                       trimsec=redtrim, masterbias=masterbias, error=error,
-                      rdnoise=None, flip=False)
+                      rdnoise=rdnoise, flip=False)
     return ccd
 
 
@@ -455,6 +460,9 @@ def flatfield_science_order(hrs, flat_hrs, median_filter_size=None, interp=False
 
     #divide and normalize by the flux
     hrs.flux = hrs.flux * np.median(flat_hrs.flux) / flat_hrs.flux
+    
+    if hrs.error is not None:
+       hrs.error = hrs.error * np.median(flat_hrs.flux) / flat_hrs.flux
 
     return hrs
 
@@ -488,18 +496,24 @@ def flatfield_science(ccd, flat_frame, order_frame, median_filter_size=None, int
     order_arr = np.arange(o1, o2, dtype=int)
 
     ndata = 0.0 * ccd.data
+    if ccd.uncertainty is not None:
+        edata = ccd.uncertainty.array
+    else:
+        edata = None
+
     for n_order in order_arr:
         hrs = HRSOrder(n_order)
         hrs.set_order_from_array(order_frame.data)
-        hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit)
+        hrs.set_flux_from_array(ccd.data, flux_unit=ccd.unit, error=edata)
 
         flat_hrs = HRSOrder(n_order)
         flat_hrs.set_order_from_array(order_frame.data)
         flat_hrs.set_flux_from_array(flat_frame.data, flux_unit=flat_frame.unit)
 
-        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=median_filter_size)
+        hrs = flatfield_science_order(hrs, flat_hrs, median_filter_size=median_filter_size, interp=interp)
 
         ndata[hrs.region[0], hrs.region[1]] = hrs.flux
+        if edata is not None: edata[hrs.region[0], hrs.region[1]] = hrs.error
 
     ccd.data = ndata
     return ccd

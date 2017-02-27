@@ -13,10 +13,10 @@ from ._astropy_init import *
 
 # For egg_info test builds to pass, put package imports here.
 if not _ASTROPY_SETUP_:
-    from hrsmodel import *
-    from hrsprocess import *
-    from hrsorder import *
-    from calibrationframes import *
-    from hrstools import *
-    from extraction import *
-    from wavelengthsolution import *
+    from .hrsmodel import *
+    from .hrsprocess import *
+    from .hrsorder import *
+    from .calibrationframes import *
+    from .hrstools import *
+    from .extraction import *
+    from .wavelengthsolution import *

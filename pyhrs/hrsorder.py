@@ -37,15 +37,23 @@ class HRSOrder(object):
     wavelength_unit: `~astropy.units.UnitBase` instance or str, optional
         The units of the wavelength
 
+    error: `~numpy.ndarray`
+        Error corresponding to each pixel coordinate in region.
+
+    mask: `~numpy.ndarray`
+        Mask corresponding to each pixel coordinate in region.
 
     """
 
     def __init__(self, order, region=None, flux=None, wavelength=None,
-                 flux_unit=None, wavelength_unit=None, order_type=None):
+                 flux_unit=None, wavelength_unit=None, order_type=None,
+                 error=None, mask=None):
         self.order = order
         self.region = region
         self.flux = flux
         self.wavelength = wavelength
+        self.error = None
+        self.mask = None
 
         self.flux_unit = flux_unit
         self.wavelength_unit = wavelength_unit
@@ -127,6 +135,43 @@ class HRSOrder(object):
         self._wavelength = value
 
     @property
+    def error(self):
+        return self._error
+
+    @error.setter
+    def error(self, value):
+        if value is None:
+            self._error = None
+            return
+
+        if self.region is None:
+            raise ValueError('No region is set yet')
+
+        if len(value) != self.npixels:
+            raise TypeError("error is not the same length as region")
+
+        self._error = value
+
+    @property
+    def mask(self):
+        return self._mask
+    
+    @mask.setter
+    def mask(self, value):
+        if value is None:
+            self._mask = None
+            return
+
+        if self.region is None:
+            raise ValueError('No region is set yet')
+
+        if len(value) != self.npixels:
+            raise TypeError("mask is not the same length as region")
+
+        self._mask = value
+
+
+    @property
     def flux_unit(self):
         return self._flux_unit
 
@@ -167,7 +212,7 @@ class HRSOrder(object):
 
         self.region = np.where(data == self.order)
 
-    def set_flux_from_array(self, data, flux_unit=None):
+    def set_flux_from_array(self, data, flux_unit=None, error=None, mask=None):
         """Given an array of data of fluxes, set the fluxes for
            the region at the given order for HRSOrder
 
@@ -179,6 +224,12 @@ class HRSOrder(object):
         flux_unit: `~astropy.units.UnitBase` instance or str, optional
             The units of the flux.
 
+        error: `~numpy.ndarray`
+            error is an 2D array with a flux error specified at each pixel.
+
+        mask: `~numpy.ndarray`
+            mask is an 2D array with a mask value specified at each pixel.
+
         """
 
         if not isinstance(data, np.ndarray):
@@ -189,6 +240,13 @@ class HRSOrder(object):
 
         self.flux = data[self.region]
         self.flux_unit = flux_unit
+
+        if error is not None:
+            self.error = error[self.region]
+
+        if mask is not None:
+            self.mask = mask[self.region]
+
 
     def set_wavelength_from_array(self, data, wavelength_unit):
         """Given an array of wavelengths, set the wavelength for
@@ -345,6 +403,10 @@ class HRSOrder(object):
             self.wavelength = self.wavelength[mask]
         if self.flux is not None:
             self.flux = self.flux[mask]
+        if self.error is not None:
+            self.error = self.error[mask]
+        if self.mask is not None:
+            self.mask = self.mask[mask]
 
         return
 
