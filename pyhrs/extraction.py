@@ -17,7 +17,7 @@ from scipy import ndimage as nd
 from .hrstools import *
 from .hrsorder import HRSOrder
 
-__all__=['simple_extract_order', 'extract_science']
+__all__=['simple_extract_order', 'extract_science', 'polyfitr', 'extract_normalize']
 
 def simple_extract_order(hrs, y1, y2, binsum=1, median_filter_size=None, interp=False):
     """Simple_extract_order transforms the observed spectra into a square form, 
@@ -129,7 +129,7 @@ def extract_science(ccd, wave_frame, order_frame, target_fiber=None,  extract_fu
         print(n_order)
        
     return spectra_dict
-    
+
 def polyfitr(x, y, order, clip, xlim=None, ylim=None, mask=None, debug=False):
     """ Fit a polynomial to data, rejecting outliers.
 
@@ -232,7 +232,7 @@ def polyfitr(x, y, order, clip, xlim=None, ylim=None, mask=None, debug=False):
 
     return coeff,x,y
     
-def extract_normalize(spectrum_file, order_to_extract, polyorder=3, sigmaclip=3.0, makeplot=False):
+def extract_normalize(spectrum_file, order_to_extract, polyorder=3, sigmaclip=3.5, makeplot=False):
 	""" This will extract a particular order from the reduced PyHRS spectrum files.
 	
 	Given a reduced PyHRS spectrum files (once data reduction has been perfomed)
@@ -283,23 +283,29 @@ def extract_normalize(spectrum_file, order_to_extract, polyorder=3, sigmaclip=3.
 	## This makes is much easier to fit the Gaussians
 	py_coeff, py_C_Wave, py_C_offsets = polyfitr(pyhrs_wavelength, pyhrs_fluxlvl, order=polyfit_order, clip=sigma_clip)
 	py_p = np.poly1d(py_coeff)
+	xs = np.arange(min(pyhrs_wavelength), max(pyhrs_wavelength), 0.1)
+	ys = np.polyval(py_p, xs)
+	if makeplot:
+		fig1 = plt.figure()
+		plt.plot(pyhrs_wavelength, pyhrs_fluxlvl, color='green', linewidth=1.0, label='PyHRS Flux')
+		plt.plot(xs, ys, color='red', label="Best Fit with outlier rejection")
+		plt.plot(py_C_Wave, py_C_offsets, marker='*', color='red', linestyle="none", label="Points used in fit")
+		plt.xlabel('Wavelength (A)')
+		plt.ylabel('Flux')
+		plt.legend(scatterpoints=1)
+		plt.show()
+
 	pyhrs_fluxlvl = pyhrs_fluxlvl-np.polyval(py_p, pyhrs_wavelength)
 	# First do some normalization on the spectrum
 	final_pyhrs_flux = pyhrs_fluxlvl
 	#final_pyhrs_flux = normalize(final_pyhrs_flux.reshape(1,-1), norm='l2')[0]
 
 	if makeplot:
-		fig1 = plt.figure()
-		plt.plot(pyhrs_wavelength, pyhrs_fluxlvl, color='green', linewidth=1.0, label='Normal PyHRS Flux')
-		plt.xlabel('Wavelength (A)')
-		plt.ylabel('Flux')
-		plt.legend()
-		plt.show()
 		fig2 = plt.figure()
-		plt.plot(pyhrs_wavelength, final_pyhrs_flux, color='blue', linewidth=1.0, label='Normalized PyHRS Reduction')
+		plt.plot(pyhrs_wavelength, final_pyhrs_flux, color='blue', linewidth=1.0, label='Continuum Corrected PyHRS Flux')
 		plt.xlabel('Wavelength (A)')
 		plt.ylabel('Flux [normalized]')
-		plt.legend()
+		plt.legend(scatterpoints=1)
 		plt.show()
 		
 	return pyhrs_wavelength, final_pyhrs_flux
