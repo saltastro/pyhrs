@@ -48,7 +48,7 @@ def extract(ccd, order_frame, soldir, target='upper', y1=3, y2=10, interp=False,
         if sdir is False and twod is False:
             sol_dict = pickle.load(open(soldir, 'rb'))
             if n_order not in sol_dict.keys(): continue
-            ws, shift_dict = sol_dict[n_order]
+            ws, shift_dict = sol_dict[n_order] 
             w, f, e, s = extract_order(ccd, order_frame, n_order, ws, shift_dict,y1=y1, y2=y2,  target=target, interp=interp)
 
         if sdir is False and twod is True:
@@ -65,7 +65,9 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Excract SALT HRS observations')
     parser.add_argument('infile', help='SALT HRS image')
     parser.add_argument('order', help='Master order file')
-    parser.add_argument('soldir', help='Master bias file')
+    parser.add_argument('soldir', help='Wavelength Solution')
+    parser.add_argument('-l', dest='lower', default=False, action='store_true', help='Extract lower fiber')
+    parser.add_argument('-u', dest='upper', default=False, action='store_true', help='Extract upper fiber')
     parser.add_argument('-2', dest='twod', default=False, action='store_true', help='2D solution')
     args = parser.parse_args()
 
@@ -74,8 +76,11 @@ if __name__=='__main__':
     soldir = args.soldir
 
     rm, xpos, target, res, w_c, y1, y2 =  mode_setup_information(ccd.header)
-    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target, y1=y1, y2=y2, twod=args.twod)
-    outfile = sys.argv[1].replace('.fits', '_spec.fits')
+    if args.lower: target='lower'
+    if args.upper: target='upper'
 
+    sp_dict = extract(ccd, order_frame, soldir, interp=True, target=target, y1=y1, y2=y2, twod=args.twod)
+
+    outfile = args.infile.replace('.fits', '_{}.fits'.format(target))
     write_spdict(outfile, sp_dict, header=ccd.header)
 
