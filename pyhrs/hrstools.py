@@ -806,7 +806,7 @@ def mode_setup_information(header):
     """
     if header['DETNAM'].lower()=='hrdet':
         arm = 'R'
-        if header['OBSMODE']=='HIGH RESOLUTION':
+        if header['OBSMODE']=='HIGH RESOLUTION' or header['OBSMODE']=='HIGH STABILITY':
             xpos = -0.025
             target = 'upper'
             res = 0.1
@@ -831,7 +831,7 @@ def mode_setup_information(header):
             y2 = 14
     else:
         arm = 'H'
-        if header['OBSMODE']=='HIGH RESOLUTION':
+        if header['OBSMODE']=='HIGH RESOLUTION' or header['OBSMODE']=='HIGH STABILITY':
             xpos = -0.025
             target = 'upper'
             res = 0.1
