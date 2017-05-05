@@ -18,7 +18,8 @@ import specutils
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
            'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift', 
            'clean_flatimage', 'mode_setup_information', 'write_spdict',
-           'fit_wavelength_solution', 'create_linelists', 'collapse_array']
+           'fit_wavelength_solution', 'create_linelists', 'collapse_array', 
+           'read_spdict']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -905,3 +906,27 @@ def write_spdict(outfile, sp_dict, header=None):
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(outfile, clobber=True)
 
+
+def read_spdict(infile):
+    """Read in a spectral dictionary
+
+    Parameters
+    ----------
+    infile: str
+       Name of infile with spectra
+
+    Returns
+    -------
+    sp_dict: dict
+       Dictionary containing wavelength, flux, and error as a function of order
+
+    """
+
+    hdu = fits.open(infile)
+    data = hdu[1].data
+
+    sp_dict = {}
+    for o in np.arange(data['ORDER'].min(), data['ORDER'].max()+1):
+        m = (data['ORDER'] == o)
+        sp_dict[o] = [data['WAVELENGTH'][m], data['FLUX'][m], data['ERROR'][m], data['SUM'][m]]
+    return sp_dict

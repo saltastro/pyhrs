@@ -20,3 +20,4 @@ if not _ASTROPY_SETUP_:
     from .hrstools import *
     from .extraction import *
     from .wavelengthsolution import *
+    from .velocitycorrection import *
