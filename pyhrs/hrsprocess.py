@@ -265,6 +265,10 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
     else:
         ccd_list = []
         xsize = 0
+        gain_ave = 0
+        for i in range(namps):
+            gain_ave += float(ccd.header['gain'].split()[i])
+        gain_ave = gain_ave / namps * u.electron / u.adu
         for i in range(namps):
             cc = ccdproc.trim_image(ccd, fits_section=ampsec[i])
 
@@ -274,6 +278,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
                               bad_pixel_mask=None, rdnoise=rdnoise,
                               oscan_median=oscan_median,
                               oscan_model=oscan_model)
+            ncc = ncc.divide(gain_ave)
             xsize = xsize + ncc.shape[1]
             ysize = ncc.shape[0]
             ccd_list.append(ncc)
@@ -302,7 +307,7 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
         nccd = ccdproc.CCDData(data, unit=ncc.unit, mask=mask,
                                uncertainty=uncertainty)
         nccd.header = ccd.header
-        nccd = ccd_process(nccd, masterbias=masterbias, error=error, gain=None,
+        nccd = ccd_process(nccd, masterbias=masterbias, error=error, gain=gain_ave,
                            rdnoise=rdnoise, bad_pixel_mask=bad_pixel_mask)
 
     if flip:
