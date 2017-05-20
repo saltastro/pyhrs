@@ -644,11 +644,10 @@ def resample(warr, farr, earr, R=15000, dr=2.0, median_clean=0):
     """
 
     mask = np.isnan(farr)
-    warr[mask] = 0
     farr[mask] = 0
     earr[mask] = 0
 
-    w1 = warr.min()
+    w1 = warr[warr>0].min()
     w2 = warr.max()
 
     #create the resampled wavelength array
@@ -664,7 +663,7 @@ def resample(warr, farr, earr, R=15000, dr=2.0, median_clean=0):
 
     #clean the array
     if median_clean:
-        mfarr = signal.medfilt(farr, kernel_size=31)
+        mfarr = signal.medfilt(farr, kernel_size=median_clean)
         mask = (mfarr/farr < 1.1)
         mask = np.convolve(1.0*(~mask), np.ones(median_clean), mode='same')
         mask = (mask == 0)
