@@ -265,45 +265,79 @@ def hrs_process(image_name, ampsec=[], oscansec=[], trimsec=[],
     else:
         ccd_list = []
         xsize = 0
+        ysize = 0
         gain_ave = 0
+
+        #determine size of the image
+        ys, xs = ccd.data.shape
+        x1=0
+        x2=0
+        y1=0
+        y2=ys
+        for i in range(namps):
+            amp = ccdproc.utils.slices.slice_from_string(ampsec[i], fits_convention=True)
+            ay1, ay2, _ = amp[0].indices(ys)
+            ax1, ax2, _ = amp[1].indices(xs)
+            trim = ccdproc.utils.slices.slice_from_string(trimsec[i], fits_convention=True) 
+            ty1, ty2, _ = trim[0].indices(ys)
+            tx1, tx2, _ = trim[1].indices(xs)
+
+            dx1 = max(tx1, ax1)
+            x1 = min(x1 or dx1, dx1)
+
+            #assumes bias frames are given in increasing x-order
+            x2 = ax2 - (ax2-ax1-tx2)
+            
+
+        data = np.zeros((y2-y1, x2-x1))
+        if ccd.mask is not None:
+           mask = np.zeros(((y2-y1, x2-x1)))
+        else:
+           mask = None 
+
+        if ccd.uncertainty is not None:
+            raise NotImplementedError(
+                'Support for uncertainties not implimented yet')
+        else:
+           uncertainty = None
+
         for i in range(namps):
             gain_ave += float(ccd.header['gain'].split()[i])
         gain_ave = gain_ave / namps * u.electron / u.adu
         for i in range(namps):
+            # trim the image to just the amplifier
             cc = ccdproc.trim_image(ccd, fits_section=ampsec[i])
 
+            # determine its position in the area after correction
+            amp = ccdproc.utils.slices.slice_from_string(ampsec[i], fits_convention=True)
+            ay1, ay2, _ = amp[0].indices(ys)
+            ax1, ax2, _ = amp[1].indices(xs)
+            trim = ccdproc.utils.slices.slice_from_string(trimsec[i], fits_convention=True) 
+            ty1, ty2, _ = trim[0].indices(ys)
+            tx1, tx2, _ = trim[1].indices(xs)
+            dx1 = max(ax1 - x1, 0)
+            dx2 = ax2 - x1
+            dy1 = ay1
+            dy2 = ay2
+ 
+            # gain correct the arrray
             gain = float(ccd.header['gain'].split()[i]) * u.electron / u.adu
             ncc = ccd_process(cc, oscan=oscansec[i], trim=trimsec[i],
                               error=False, masterbias=None, gain=gain,
                               bad_pixel_mask=None, rdnoise=rdnoise,
                               oscan_median=oscan_median,
                               oscan_model=oscan_model)
+
+            # normalize all to have the same gain
             ncc = ncc.divide(gain_ave)
-            xsize = xsize + ncc.shape[1]
-            ysize = ncc.shape[0]
-            ccd_list.append(ncc)
+               
+           
+            data[dy1:dy2,dx1:dx2] = ncc.data
+            if ccd.mask is not None:
+               mask[dy1:dy2,dx1:dx2] = ncc.mask
 
-        # now recombine the processed data
-        ncc = ccd_list[0]
-        data = np.zeros((ysize, xsize))
-        if ncc.mask is not None:
-            mask = np.zeros((ysize, xsize))
-        else:
-            mask = None
-        if ncc.uncertainty is not None:
-            raise NotImplementedError(
-                'Support for uncertainties not implimented yet')
-        else:
-            uncertainty = None
 
-        x1 = 0
-        for i in range(namps):
-            x2 = x1 + ccd_list[i].data.shape[1]
-            data[:, x1:x2] = ccd_list[i].data
-            if mask is not None:
-                mask[:, x1:x2] = ccd_list[i].mask
-            x1 = x2
-
+        # create new entryy
         nccd = ccdproc.CCDData(data, unit=ncc.unit, mask=mask,
                                uncertainty=uncertainty)
         nccd.header = ccd.header
@@ -368,12 +402,26 @@ def blue_process(infile, masterbias=None, error=False, rdnoise=None, oscan_corre
 def red_process(infile, masterbias=None, error=None, rdnoise=None, oscan_correct=False):
     """Process a blue frame
     """
-    redamp = ['[1:4122,1:4112]']
-    if oscan_correct:
-        redscan = ['[1:25,1:4112]']
+
+    ccd = ccdproc.CCDData.read(infile, unit=u.adu)
+    try:
+        namps = ccd.header['CCDAMPS']
+    except KeyError:
+        namps = ccd.header['CCDNAMPS']
+
+    if namps==1:
+       redamp = ['[1:4122,1:4112]']
+       if oscan_correct:
+            redscan = ['[1:25,1:4112]']
+       else:
+            redscan = [None]
+       redtrim = ['[27:4122,1:4112]']
     else:
-        redscan = [None]
-    redtrim = ['[27:4122,1:4112]']
+       redamp = ['[1:2074,1:2056]', '[1:2074,2057:4112]', '[2075:4148,1:2056]', '[2075:4122,2057:4112]']
+       redscan = namps * [None]
+       redtrim = ['[27:2074,:]', '[27:2074,:]', '[1:2048,:]', '[1:2048,:]']
+       
+  
     ccd = hrs_process(infile, ampsec=redamp, oscansec=redscan,
                       trimsec=redtrim, masterbias=masterbias, error=error,
                       rdnoise=rdnoise, flip=False)
