@@ -5,7 +5,7 @@ from astropy import constants as c
 from astropy import coordinates
 from PySpectrograph.Spectra.Spectrum import air2vac
 
-__all__=['velcorr', 'convert_data']
+__all__=['velcorr', 'convert_data', 'calculate_velocity']
 
 def velcorr(time, skycoord, location=None):
   """Barycentric velocity correction.
@@ -57,3 +57,31 @@ def convert_data(wave, vslr):
    """
    wave = air2vac(wave)
    return wave * (1+vslr/c.c)
+
+def calculate_velocity(header):
+    """Given a SALT HRS header, calculate the heliocentric correction for the data
+
+    Parameters
+    ----------
+    header: dict
+         Fits Header object from a SALT HRS observations
+
+    Returns
+    -------
+    vhelio: astropy.quantity
+         heliocentric velocity correction for the data
+    
+     
+    """
+    date_obs = header['DATE-OBS']
+    utc_obs = header['UTC-OBS']
+    ra = header['RA']
+    dec = header['DEC']
+    lat = header['SITELAT']
+    lon = header['SITELONG']
+    elev = header['SITEELEV']
+    time = Time('{} {}'.format(date_obs, utc_obs), format='iso', scale='utc')
+    skycoord = SkyCoord(ra, dec,  unit=(u.hourangle, u.deg))
+    location = EarthLocation(lon, lat, elev)
+    vhelio = velcorr(time, skycoord, location)
+    return vhelio
