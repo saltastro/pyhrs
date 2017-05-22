@@ -807,7 +807,14 @@ def mode_setup_information(header):
     """
     if header['DETNAM'].lower()=='hrdet':
         arm = 'R'
-        if header['OBSMODE']=='HIGH RESOLUTION' or header['OBSMODE']=='HIGH STABILITY':
+        if header['OBSMODE']=='HIGH STABILITY':
+            xpos = -0.025
+            target = 'lower'
+            res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.440318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+            y1 = 5
+            y2 = 24
+        if header['OBSMODE']=='HIGH RESOLUTION':
             xpos = -0.025
             target = 'upper'
             res = 0.1
@@ -839,6 +846,7 @@ def mode_setup_information(header):
             w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
             y1 = 3 
             y2 = 21
+            if header['OBSMODE']=='HIGH STABILITY': target = 'lower'
         elif header['OBSMODE']=='MEDIUM RESOLUTION':
             xpos = 1.55
             target = 'upper'
