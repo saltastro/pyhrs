@@ -13,13 +13,15 @@ from astropy import modeling as mod
 from astropy import stats
 
 from scipy import ndimage as nd
+from scipy import signal
 
 from .hrstools import *
 from .hrsorder import HRSOrder
 
 
-__all__=['extract_order', 'simple_extract_order', 'extract_science', 'normalize_order', 
-         'normalize_spectra', 'stitch_spectra', 'polyfitr', 'extract_normalize']
+__all__=['extract_order', 'simple_extract_order', 'extract_science',
+         'normalize_order', 'normalize_spectra', 'stitch_order',
+         'stitch_spectra', 'polyfitr', 'extract_normalize', 'resample']
 
 
 def extract_order(ccd, order_frame, n_order, ws, shift_dict, y1=3, y2=10, order=None, target=True, interp=False):
@@ -479,7 +481,70 @@ def normalize_spectra(spectra_dict, model=mod.models.Chebyshev1D(2),
 
     return spectra_dict
 
-def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitter=None):
+
+def stitch_order(csp, sp, m_init, fitter=mod.fitting.LinearLSQFitter()):
+    """Stitch a single order onto the rest of a spectra
+
+    Parameters
+    ----------
+
+    csp: list
+        A list containing the wavelength, flux, flux_err, and summed flux
+        for the base spectra that will be stitched to
+
+    sp: list
+        A list containing the wavelength, flux, flux_err, and summed flux for 
+        the spectra that will be stitched
+
+    m_init: astropy.modeling.models
+        Model to use to match the orders
+
+    fitter: astropy.modeling.fitter
+        Fitter for model to use to match the orders
+
+    Returns
+    -------
+    csp: list
+        A list containing the wavelength, flux, flux_err, and summed flux
+        now with the csp and sp spectra stitched together
+
+    """
+
+
+    if sp[0].min() < csp[0].min():
+        cmask = (csp[0] < sp[0].max())
+    else:
+        cmask = (csp[0] > sp[0].min())
+
+
+    cw = csp[0][cmask]
+
+    #interpolate the flux of the spectra
+    sf = np.interp(cw, sp[0], sp[1])
+    m = fitter(m_init, csp[0][cmask], csp[1][cmask]/sf)
+    norm = m(sp[0])
+
+    #repeat for the summed version
+    sf = np.interp(cw, sp[0], sp[3])
+    sm = fitter(m_init, csp[0][cmask], csp[1][cmask]/sf)
+    sum_norm = sm(sp[0])
+
+    #set the rest of the values to the value for the 
+    #last overlapping pixel in the center
+    if sp[0].min() < csp[0].min():
+        smask = (sp[0] < csp[0].min())
+        norm[smask] = m(csp[0][cmask][0])
+        sum_norm[smask] = sm(csp[0][cmask][0])
+    else:
+        smask = (sp[0] > csp[0].max())
+        norm[smask] = m(csp[0][cmask][-1])
+        sum_norm[smask] = sm(csp[0][cmask][-1])
+
+    csp = [np.concatenate([csp[0], sp[0]]), np.concatenate([csp[1], norm*sp[1]]), np.concatenate([csp[2], norm*sp[2]]), np.concatenate([csp[3], sum_norm*sp[3]])]
+    return csp
+
+
+def stitch_spectra(sp_dict, center_order=103, trim=0, m_init = mod.models.Polynomial1D(1), fitter=mod.fitting.LinearLSQFitter()):
     """Give a spectra, stitch the spectra together
 
     Parameters
@@ -487,27 +552,142 @@ def stitch_spectra(spectra_dict, n_min, n_max, normalize=False, model=None, fitt
     spectra_dict: dict
         Dictionary containing wavelenghts and fluxes
 
-    normalize_order: bool
-        Normalize the individual orders
+    center_order: int
+        Order of the central order
+
+    trim: int
+        Number of pixels to trim
+
+    m_init: astropy.modeling.models
+        Model to use to match the orders
+
+    fitter: astropy.modeling.fitter
+        Fitter for model to use to match the orders
+
+    Returns
+    -------
+    wavelength: numpy.ndarray
+        Wavelength for the spectra
+
+    flux: numpy.ndarray
+        Averaged flux for the spectra
+
+    flux_err: numpy.ndarray
+        Error for the flux for the spectra
+
+    sum: numpy.ndarray
+        Summed flux for the spectra
   
     """
-    warr = None
-    for o in range(n_min, n_max):
-          w,f,e,s = spectra_dict[o]
-          if np.all(np.isnan(f)): continue
-          f[np.isnan(f)] = 0
-          if normalize:
-              f = normalize_order(w, f, model=model, fitter=fitter)
-          if warr is None:
-             warr = 1.0 * w
-             farr = 1.0 * f
-             earr = 1.0 * e
-             sarr = 1.0 * s
-          else:
-             warr = np.concatenate([warr, w])
-             farr = np.concatenate([farr, f])
-             earr = np.concatenate([farr, e])
-             sarr = np.concatenate([farr, s])
+   
 
-    i = warr.argsort()
-    return warr[i], farr[i], earr[i], sarr[i]
+    # trim the order and replace any bad values in the spectra
+    keys = np.array(sp_dict.keys())
+    if trim>0:
+       nsp_dict = {}
+       for i in keys:
+           nsp_dict[i] = [x[trim:-trim] for x in sp_dict[i]]
+           f = nsp_dict[i][1]
+           f[np.isnan(f)] = 0
+           nsp_dict[i][1] = f
+    else:
+       nsp_dict = sp_dict
+
+    # set up the initial spectra
+    csp = nsp_dict[center_order]
+
+    # for each order to the left and right of the order, normalize it 
+    # to the order and then add it into that order
+    for i in np.arange(center_order+1, keys.max()+1, 1):
+        csp = stitch_order(csp, nsp_dict[i], m_init, fitter=fitter)
+    for i in np.arange(center_order-1, keys.min()-1, -1):
+        csp = stitch_order(csp, nsp_dict[i], m_init, fitter=fitter)
+    j = csp[0].argsort()
+    csp = [csp[0][j], csp[1][j], csp[2][j], csp[3]]
+    return csp
+
+
+def resample(warr, farr, earr, R=15000, dr=2.0, median_clean=0):
+    """Resample an array and sum pixels falling in the same resolution element
+
+    Parameters
+    ----------
+    warr: numpy.ndarray
+        Wavelength for the spectra
+
+    farr: numpy.ndarray
+        Averaged flux for the spectra
+
+    earr: numpy.ndarray
+        Error for the flux for the spectra   
+
+    R: float
+        Resolution of the observations
+
+    dr: float
+        Amount to subsample resolution element 
+
+    median_clean: int 
+        Size of the filter to use for median cleaning
+
+    Returns  
+    -------
+    warr: numpy.ndarray
+        Resampled Wavelength for the spectra
+
+    farr: numpy.ndarray
+        Resampled Averaged flux for the spectra
+
+    earr: numpy.ndarray
+        Resampled error for the flux for the spectra 
+
+    """
+
+    mask = np.isnan(farr)
+    farr[mask] = 0
+    earr[mask] = 0
+
+    w1 = warr[warr>0].min()
+    w2 = warr.max()
+
+    #create the resampled wavelength array
+    res_element = warr/R/dr
+    w = w1
+    warr_list = [w]
+
+    while w < w2:
+       dw = np.interp(w, warr, res_element)
+       w = w+dw
+       warr_list.append(w)
+    wave = np.array(warr_list)
+
+    #clean the array
+    if median_clean:
+        mfarr = signal.medfilt(farr, kernel_size=median_clean)
+        mask = (mfarr/farr < 1.1)
+        mask = np.convolve(1.0*(~mask), np.ones(median_clean), mode='same')
+        mask = (mask == 0)
+
+        warr = warr[mask]
+        farr = farr[mask]
+        earr = earr[mask]
+
+    #sum the flux
+    flux = np.zeros_like(wave)
+    err = np.zeros_like(wave)
+    for i in range(len(wave)-1):
+        mask = (warr > wave[i]) * (warr < wave[i+1]) * (farr>0)
+        if mask.sum()==0: continue
+        w = 1.0/earr[mask]**2
+        f = (farr[mask] * w).sum()/w.sum()
+        flux[i] =  f
+        err[i] = (1.0/(earr[mask]**-2).sum())**0.5
+        wave[i] = 0.5*(wave[i]+wave[i+1])
+
+    wave = wave[:-1]
+    flux = flux[:-1]
+    err = err[:-1]
+
+    return wave, flux, err
+
+

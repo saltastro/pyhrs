@@ -18,7 +18,8 @@ import specutils
 __all__ = ['background', 'fit_order', 'normalize_image', 'xcross_fit', 'ncor',
            'iterfit1D', 'calc_weights', 'match_lines', 'zeropoint_shift', 
            'clean_flatimage', 'mode_setup_information', 'write_spdict',
-           'fit_wavelength_solution', 'create_linelists', 'collapse_array']
+           'fit_wavelength_solution', 'create_linelists', 'collapse_array', 
+           'read_spdict']
 
 def background(b_arr, niter=3):
     """Determine the background for an array
@@ -806,7 +807,14 @@ def mode_setup_information(header):
     """
     if header['DETNAM'].lower()=='hrdet':
         arm = 'R'
-        if header['OBSMODE']=='HIGH RESOLUTION' or header['OBSMODE']=='HIGH STABILITY':
+        if header['OBSMODE']=='HIGH STABILITY':
+            xpos = -0.025
+            target = 'lower'
+            res = 0.1
+            w_c = mod.models.Polynomial1D(2, c0=0.440318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
+            y1 = 5
+            y2 = 24
+        if header['OBSMODE']=='HIGH RESOLUTION':
             xpos = -0.025
             target = 'upper'
             res = 0.1
@@ -838,6 +846,7 @@ def mode_setup_information(header):
             w_c = mod.models.Polynomial1D(2, c0=0.840318305862, c1=0.000796335104265,c2=-6.59068602173e-07)
             y1 = 3 
             y2 = 21
+            if header['OBSMODE']=='HIGH STABILITY': target = 'lower'
         elif header['OBSMODE']=='MEDIUM RESOLUTION':
             xpos = 1.55
             target = 'upper'
@@ -905,3 +914,27 @@ def write_spdict(outfile, sp_dict, header=None):
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(outfile, clobber=True)
 
+
+def read_spdict(infile):
+    """Read in a spectral dictionary
+
+    Parameters
+    ----------
+    infile: str
+       Name of infile with spectra
+
+    Returns
+    -------
+    sp_dict: dict
+       Dictionary containing wavelength, flux, and error as a function of order
+
+    """
+
+    hdu = fits.open(infile)
+    data = hdu[1].data
+
+    sp_dict = {}
+    for o in np.arange(data['ORDER'].min(), data['ORDER'].max()+1):
+        m = (data['ORDER'] == o)
+        sp_dict[o] = [data['WAVELENGTH'][m], data['FLUX'][m], data['ERROR'][m], data['SUM'][m]]
+    return sp_dict

@@ -91,18 +91,30 @@ def identify(arc, order_frame, n_order, camera_name, xpos, ws=None,
 
 if __name__=='__main__':
 
-   
-    arc = CCDData.read(sys.argv[1])
-    order_frame = CCDData.read(sys.argv[2], unit=u.adu)
-    n_order = int(sys.argv[3]) #default order to use for initial file
-    soldir = sys.argv[4]
+    import argparse 
+    parser = argparse.ArgumentParser(description='Re-identify SALT HRS arc observations')
+    parser.add_argument('infile', help='SALT HRS image')
+    parser.add_argument('n_order', help='Order for the identification')
+    parser.add_argument('--o', dest='order', help='Master order file')
+    parser.add_argument('--sol', dest='soldir', help='Directory containing the solutions', default='./')
+    parser.add_argument('--t', dest='target', help='Force extraction of "upper or "lower" fiber', default=None)
+    args = parser.parse_args()
+
+    
+    arc = CCDData.read(args.infile)
+    order_frame = CCDData.read(args.order, unit='electron')
+    n_order = int(args.n_order)
+    soldir = args.soldir
 
     shift_dict, ws = pickle.load(open(soldir+'sol_%i.pkl' % n_order))
 
     camera_name = arc.header['DETNAM'].lower()
 
     arm, xpos, target, res, w_c, y1, y2 = mode_setup_information(arc.header)
+    if args.target:
+       target = args.target
     print arm, xpos, target
+    target = 'upper'
     dc_dict, iws = identify(arc, order_frame, n_order, camera_name, xpos, ws=ws,
              target=target, interp=True, w_c=w_c,
              rstep=1, nrows=2, mdiff=20, wdiff=3, thresh=3, niter=5, dc=3,
